@@ -1,9 +1,9 @@
 import test from 'tape-six'
 
 test('window and navigator', t => {
-  t.ok(typeof window === 'object', 'window exists')
-  t.ok(typeof document === 'object', 'document exists')
-  t.ok(typeof navigator === 'object', 'navigator exists')
+  t.equal(typeof window, 'object', 'window exists')
+  t.equal(typeof document, 'object', 'document exists')
+  t.equal(typeof navigator, 'object', 'navigator exists')
   t.equal(typeof navigator.userAgent, 'string', 'userAgent is a string')
 })
 
