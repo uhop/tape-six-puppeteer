@@ -1,0 +1,249 @@
+# tape-six-puppeteer
+
+> A helper for [tape-six](https://github.com/uhop/tape-six) that runs test files in a headless browser via Puppeteer. Each test file runs in its own iframe inside headless Chrome. The npm package name is `tape-six-puppeteer` and the CLI command is `tape6-puppeteer`.
+
+- Real browser environment: tests run in headless Chrome with full DOM and browser API access
+- Iframe isolation: each test file runs in its own iframe
+- Cross-runtime: Node, Deno, and Bun with the same test files
+- Drop-in companion for `tape6` (worker-thread runner) and `tape6-proc` (subprocess runner)
+- Same configuration format as `tape-six`
+- Parallel execution with configurable concurrency
+- TAP, TTY (colored), JSONL, and minimal output formats
+
+## Install
+
+```bash
+npm i -D tape-six-puppeteer
+```
+
+Puppeteer's bundled Chromium is installed automatically via `postinstall`.
+
+## Quick start
+
+Write a test (`tests/test-dom.js`):
+
+```js
+import test from 'tape-six'
+
+test('DOM works', t => {
+  const el = document.createElement('div')
+  el.textContent = 'hello'
+  document.body.appendChild(el)
+  t.equal(document.body.lastChild.textContent, 'hello', 'element created')
+})
+```
+
+Run all configured tests via Puppeteer:
+
+```bash
+tape6-puppeteer --start-server --flags FO
+```
+
+## CLI: tape6-puppeteer
+
+Runs test files in parallel, each in its own iframe inside headless Chrome.
+
+```bash
+tape6-puppeteer [--flags FLAGS] [--par N] [--start-server] [tests...]
+```
+
+### Options
+
+- `--flags FLAGS` (`-f`) — output control flags (see Supported flags below).
+- `--par N` (`-p`) — number of parallel iframes. Default: all CPU cores (via `os.availableParallelism()` or `navigator.hardwareConcurrency`).
+- `--start-server` — auto-start `tape6-server` if not already running.
+- `--self` — prints the absolute path to `tape-six-puppeteer.js` and exits. Used in cross-runtime scripts.
+- Positional arguments: test file glob patterns. If none given, fetches from server.
+
+### Examples
+
+```bash
+# Run all configured tests
+tape6-puppeteer --start-server --flags FO
+
+# Run specific test files
+tape6-puppeteer --start-server tests/test-dom.js
+
+# Limit parallelism
+tape6-puppeteer --start-server --par 2 --flags FO
+
+# Use with already-running server
+tape6-puppeteer --flags FO
+```
+
+## Cross-runtime usage
+
+`tape6-puppeteer` is a Node CLI by default. For Bun and Deno, use the `--self` flag to get the script path:
+
+```json
+{
+  "scripts": {
+    "test": "tape6-puppeteer --start-server --flags FO",
+    "test:bun": "bun run `tape6-puppeteer --self` --start-server --flags FO",
+    "test:deno": "deno run -A `tape6-puppeteer --self` --start-server --flags FO"
+  }
+}
+```
+
+## Supported flags
+
+Flags are a string of characters. Uppercase = enabled, lowercase = disabled.
+
+- `F` — Failures only: show only failed tests.
+- `T` — show Time for each test.
+- `B` — show Banner with summary.
+- `D` — show Data of failed tests.
+- `O` — fail Once: stop at first failure.
+- `N` — show assert Number.
+- `M` — Monochrome: no colors.
+- `C` — don't Capture console output.
+- `H` — Hide streams and console output.
+
+Usage:
+
+```bash
+tape6-puppeteer --start-server --flags FO
+TAPE6_FLAGS=FO tape6-puppeteer --start-server
+```
+
+## Server
+
+`tape6-puppeteer` requires `tape6-server` (from `tape-six`) to serve test files to the browser.
+
+- `--start-server`: auto-starts the server before running tests.
+- Without it: the server must already be running. The runner prints instructions if it's unreachable.
+- Server URL: `TAPE6_SERVER_URL` env var, or `HOST`/`PORT`, or default `http://localhost:3000`.
+- Server endpoints used: `GET /--tests` (test file list), `GET /--importmap` (import map).
+
+## Configuration
+
+Configuration is read from `tape6.json` or the `"tape6"` section of `package.json` (same format as `tape-six`):
+
+```json
+{
+  "tape6": {
+    "browser": ["/tests/test-*.html"],
+    "tests": ["/tests/test-*.*js"],
+    "importmap": {
+      "imports": {
+        "tape-six": "/node_modules/tape-six/index.js",
+        "tape-six/": "/node_modules/tape-six/src/"
+      }
+    }
+  }
+}
+```
+
+The `importmap` section is served by `tape6-server` at `/--importmap` and injected into each iframe for module resolution.
+
+## Environment variables
+
+- `TAPE6_FLAGS` — flags string (combined with `--flags` CLI argument).
+- `TAPE6_PAR` — number of parallel iframes (overridden by `--par`).
+- `TAPE6_TAP` — force TAP reporter (any non-empty value).
+- `TAPE6_JSONL` — force JSONL reporter (any non-empty value).
+- `TAPE6_MIN` — force minimal reporter (any non-empty value).
+- `TAPE6_SERVER_URL` — full server URL override (e.g. `http://localhost:4000`).
+- `HOST` — server hostname (default: `localhost`).
+- `PORT` — server port (default: `3000`).
+
+## Architecture
+
+### Entry point
+
+`bin/tape-six-puppeteer.js` is the CLI entry point:
+
+- With `--self`: prints its own absolute path and exits.
+- Otherwise: delegates to `bin/tape-six-puppeteer-node.js`.
+
+### Main CLI (`bin/tape-six-puppeteer-node.js`)
+
+1. Parses CLI arguments (`--flags`, `--par`, `--start-server`, positional test patterns).
+2. Selects reporter: TTY (default for terminals), TAP, JSONL, or Min (based on environment variables).
+3. Ensures `tape6-server` is reachable (auto-starts if `--start-server`).
+4. Fetches test files from `GET /--tests` and importmap from `GET /--importmap`.
+5. Creates a `TestWorker` instance and executes all test files.
+6. Reports final results and exits with code 0 (success) or 1 (failures).
+7. Kills auto-started server on exit.
+
+### TestWorker (`src/TestWorker.js`)
+
+Extends `EventServer` from `tape-six`. Manages Puppeteer browser and iframe execution:
+
+- **`constructor(reporter, numberOfTasks, options)`** — launches headless Chrome, creates a page, exposes `__tape6_reporter` and `__tape6_error` as page globals.
+- **`makeTask(fileName)`** — creates an iframe for the test file. Returns a task ID.
+- **`destroyTask(id)`** — removes the iframe from the page.
+- **`close()`** — closes the browser.
+
+### Iframe lifecycle
+
+For `.html` files:
+1. Set iframe `src` to the file URL with query parameters (`id`, `test-file-name`, `flags`).
+2. The HTML file loads `tape-six` which auto-detects `window.parent.__tape6_reporter`.
+
+For `.js`/`.mjs` files:
+1. Create iframe, write an HTML document with `importmap` and a dynamic `<script type="module">`.
+2. The script sets `window.__tape6_id`, `window.__tape6_testFileName`, `window.__tape6_flags`.
+3. Dynamically appends a `<script>` element pointing to the test file URL on the server.
+4. `tape-six` initializes, detects `window.parent.__tape6_reporter`, and uses `ProxyReporter`.
+
+### Event flow
+
+```
+iframe tape-six → ProxyReporter → window.parent.__tape6_reporter(id, event)
+  → page.exposeFunction → Node.js TestWorker.report(id, event) → reporter
+```
+
+### Unsupported files
+
+`.cjs`, `.ts`, `.cts`, `.mts` files are skipped with a warning.
+
+## Dependencies
+
+- **`tape-six`** — the core test library. Imports: `State.js`, `utils/EventServer.js`, `utils/config.js`, `test.js`, reporters (`TTYReporter`, `TapReporter`, `JSONLReporter`, `MinReporter`), `utils/timer.js`.
+- **`puppeteer`** — headless Chrome automation. Bundled Chromium installed via `postinstall`.
+
+## Writing tests
+
+Tests are standard `tape-six` tests. See the [tape-six documentation](https://github.com/uhop/tape-six/wiki) for the full API.
+
+```js
+import test from 'tape-six'
+
+test('browser APIs', t => {
+  t.ok(typeof window === 'object', 'window exists')
+  t.ok(typeof document === 'object', 'document exists')
+  t.equal(typeof fetch, 'function', 'fetch available')
+})
+
+test('DOM manipulation', t => {
+  const el = document.createElement('div')
+  el.classList.add('test')
+  t.ok(el.classList.contains('test'), 'classList works')
+})
+```
+
+`.html` test files can include their own importmap and inline scripts:
+
+```html
+<!doctype html>
+<html>
+  <head>
+    <script type="importmap">
+      { "imports": { "tape-six": "/node_modules/tape-six/index.js" } }
+    </script>
+    <script type="module">
+      import test from 'tape-six'
+      test('html test', t => { t.ok(true, 'works') })
+    </script>
+  </head>
+  <body></body>
+</html>
+```
+
+## Links
+
+- Docs: https://github.com/uhop/tape-six-puppeteer/wiki
+- npm: https://www.npmjs.com/package/tape-six-puppeteer
+- tape-six: https://github.com/uhop/tape-six
+- tape-six LLM reference: https://github.com/uhop/tape-six/blob/master/llms.txt

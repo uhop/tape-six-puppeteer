@@ -1,20 +1,77 @@
 {
   "name": "tape-six-puppeteer",
   "version": "1.0.0",
-  "description": "TBD",
-  "homepage": "https://github.com/uhop/tape-six-puppeteer#readme",
-  "bugs": {
-    "url": "https://github.com/uhop/tape-six-puppeteer/issues"
+  "description": "Puppeteer-based browser test runner for tape-six. Runs each test file in its own iframe inside headless Chrome. Works with Node, Deno, and Bun.",
+  "type": "module",
+  "bin": {
+    "tape6-puppeteer": "bin/tape-six-puppeteer.js"
   },
+  "scripts": {
+    "lint": "prettier --check .",
+    "lint:fix": "prettier --write .",
+    "postinstall": "puppeteer browsers install chrome",
+    "test": "node ./bin/tape-six-puppeteer.js --start-server --flags FO",
+    "test:bun": "bun run ./bin/tape-six-puppeteer.js --start-server --flags FO",
+    "test:deno": "deno run -A ./bin/tape-six-puppeteer.js --start-server --flags FO"
+  },
+  "keywords": [
+    "tap",
+    "tape6",
+    "tape-six",
+    "test",
+    "test-runner",
+    "unit-test",
+    "testing",
+    "harness",
+    "browser",
+    "puppeteer",
+    "headless",
+    "chrome",
+    "iframe",
+    "parallel",
+    "cross-runtime",
+    "nodejs",
+    "deno",
+    "bun",
+    "esm",
+    "es-modules"
+  ],
+  "author": "Eugene Lazutkin <eugene.lazutkin@gmail.com> (https://www.lazutkin.com)",
+  "funding": "https://github.com/sponsors/uhop",
+  "license": "BSD-3-Clause",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/uhop/tape-six-puppeteer.git"
   },
-  "license": "ISC",
-  "author": "Eugene Lazutkin <eugene.lazutkin@gmail.com>",
-  "type": "module",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "bugs": {
+    "url": "https://github.com/uhop/tape-six-puppeteer/issues"
+  },
+  "homepage": "https://github.com/uhop/tape-six-puppeteer#readme",
+  "github": "http://github.com/uhop/tape-six-puppeteer",
+  "llms": "https://raw.githubusercontent.com/uhop/tape-six-puppeteer/master/llms.txt",
+  "llmsFull": "https://raw.githubusercontent.com/uhop/tape-six-puppeteer/master/llms-full.txt",
+  "files": [
+    "bin",
+    "src",
+    "llms.txt",
+    "llms-full.txt"
+  ],
+  "dependencies": {
+    "puppeteer": "^24.37.5",
+    "tape-six": "^1.7.4"
+  },
+  "tape6": {
+    "browser": [
+      "/tests/test-*.html"
+    ],
+    "tests": [
+      "/tests/test-*.*js"
+    ],
+    "importmap": {
+      "imports": {
+        "tape-six": "/node_modules/tape-six/index.js",
+        "tape-six/": "/node_modules/tape-six/src/"
+      }
+    }
   }
 }

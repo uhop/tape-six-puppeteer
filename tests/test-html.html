@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HTML test</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "tape-six": "/node_modules/tape-six/index.js",
+          "tape-six/": "/node_modules/tape-six/src/"
+        }
+      }
+    </script>
+    <script type="module">
+      import test from 'tape-six'
+
+      test('HTML document structure', t => {
+        t.ok(document.doctype, 'doctype exists')
+        t.equal(document.title, 'HTML test', 'title matches')
+        t.ok(document.querySelector('p#greeting'), 'paragraph found')
+        t.equal(document.querySelector('p#greeting').textContent, 'Hello from HTML test', 'text matches')
+      })
+
+      test('inline styles', t => {
+        const el = document.querySelector('#styled')
+        const style = getComputedStyle(el)
+        t.equal(el.tagName, 'DIV', 'element is a div')
+        t.ok(el.style.color, 'has inline color style')
+      })
+    </script>
+    <style>
+      #styled { font-weight: bold; }
+    </style>
+  </head>
+  <body>
+    <p id="greeting">Hello from HTML test</p>
+    <div id="styled" style="color: red;">Styled element</div>
+  </body>
+</html>

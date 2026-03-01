@@ -1,0 +1,51 @@
+<!-- Canonical source: AGENTS.md — keep this file in sync -->
+# tape-six-puppeteer — AI Agent Rules
+
+## Project identity
+
+tape-six-puppeteer is a Puppeteer-based browser test runner for tape-six. Runs each test file in its own iframe inside headless Chrome. Works with Node, Deno, and Bun. The npm package name is `tape-six-puppeteer` and the CLI command is `tape6-puppeteer`.
+
+## Critical rules
+
+- **ESM-only.** The project is `"type": "module"`. Use `import`/`export` syntax.
+- **No transpilation.** Code runs directly in all target runtimes.
+- **Minimal dependencies.** Only `puppeteer` and `tape-six`. Do not add others without explicit approval.
+- **Puppeteer's bundled Chromium** is installed via `postinstall` (`puppeteer browsers install chrome`).
+- **Do not modify or delete test expectations** without understanding why they changed.
+- **Do not add comments or remove comments** unless explicitly asked.
+
+## Code style
+
+- Prettier: 100 char width, single quotes, no bracket spacing, no trailing commas, arrow parens "avoid" (see `.prettierrc`).
+- 2-space indentation.
+- Imports at top of file, using `import` syntax. No dynamic imports unless necessary.
+- No semicolons — follow existing patterns.
+
+## Architecture quick reference
+
+- `bin/tape-six-puppeteer.js` is the CLI entry point. With `--self` it prints its own path. Otherwise delegates to `bin/tape-six-puppeteer-node.js`.
+- `bin/tape-six-puppeteer-node.js` parses CLI arguments, sets up the reporter, ensures `tape6-server` is running (with optional `--start-server`), fetches test files and importmap, runs them via `TestWorker`.
+- `src/TestWorker.js` extends `EventServer` from `tape-six`. Launches headless Chrome, exposes `__tape6_reporter` and `__tape6_error` globals, runs each test file in a separate iframe.
+- For `.html` files: loaded as iframe `src` with query parameters.
+- For `.js`/`.mjs` files: HTML document written into iframe with importmap and dynamic module script.
+- Unsupported extensions (`.cjs`, `.ts`, `.cts`, `.mts`) are skipped with a warning.
+
+## Verification commands
+
+- `npm test` — run headless browser tests (auto-starts server)
+- `npm run test:bun` — run with Bun
+- `npm run test:deno` — run with Deno
+- `npm run lint` — Prettier format check
+
+## File layout
+
+- CLI: `bin/tape-six-puppeteer.js`, `bin/tape-six-puppeteer-node.js`
+- Core: `src/TestWorker.js`
+- Tests: `tests/test-*.js`, `tests/test-*.mjs`, `tests/test-*.html`
+- Wiki docs: `wiki/` (git submodule)
+
+## When reading the codebase
+
+- Start with `AGENTS.md` for full project conventions and architecture.
+- `src/TestWorker.js` is the core module — read it first.
+- Wiki markdown files in `wiki/` contain detailed usage docs.
