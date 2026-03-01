@@ -113,10 +113,10 @@ const getServerUrl = () => {
 
 const ensureServer = async serverUrl => {
   try {
-    const res = await fetch(serverUrl + '/--tests');
-    if (res.ok) return null;
-  } catch (e) {
-    void e;
+    const response = await fetch(serverUrl + '/--tests');
+    if (response.ok) return null;
+  } catch (error) {
+    void error;
   }
 
   if (!startServer) {
@@ -150,10 +150,10 @@ const ensureServer = async serverUrl => {
   for (let i = 0; i < 30; ++i) {
     await new Promise(resolve => setTimeout(resolve, 500));
     try {
-      const res = await fetch(serverUrl + '/--tests');
-      if (res.ok) return child;
-    } catch (e) {
-      void e;
+      const response = await fetch(serverUrl + '/--tests');
+      if (response.ok) return child;
+    } catch (error) {
+      void error;
     }
   }
 
@@ -199,10 +199,10 @@ const main = async () => {
   // fetch test files from server if none specified on CLI
   if (!files.length) {
     try {
-      const res = await fetch(serverUrl + '/--tests');
-      if (res.ok) files = await res.json();
-    } catch (e) {
-      void e;
+      const response = await fetch(serverUrl + '/--tests');
+      if (response.ok) files = await res.json();
+    } catch (error) {
+      void error;
     }
   }
 
@@ -215,10 +215,10 @@ const main = async () => {
   // fetch importmap from server
   let importmap = null;
   try {
-    const res = await fetch(serverUrl + '/--importmap');
-    if (res.ok) importmap = await res.json();
-  } catch (e) {
-    void e;
+    const response = await fetch(serverUrl + '/--importmap');
+    if (response.ok) importmap = await response.json();
+  } catch (error) {
+    void error;
   }
 
   const reporter = getReporter(),
