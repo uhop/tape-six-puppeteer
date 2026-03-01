@@ -3,7 +3,7 @@ import puppeteer from 'puppeteer';
 import {isStopTest} from 'tape-six/State.js';
 import EventServer from 'tape-six/utils/EventServer.js';
 
-const unsupportedExtRe = /\.(?:cjs|ts|cts|mts)$/i;
+const supportedExtRe = /\.(?:js|mjs|htm|html)$/i;
 
 export default class TestWorker extends EventServer {
   constructor(reporter, numberOfTasks, options) {
@@ -67,7 +67,7 @@ export default class TestWorker extends EventServer {
     });
   }
   makeTask(fileName) {
-    if (unsupportedExtRe.test(fileName)) {
+    if (!supportedExtRe.test(fileName)) {
       console.warn(`Skipping unsupported file: ${fileName}`);
       return null;
     }
