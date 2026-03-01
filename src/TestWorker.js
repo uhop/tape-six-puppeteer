@@ -22,8 +22,8 @@ export default class TestWorker extends EventServer {
 
     // navigate to server so iframes inherit the correct origin
     await this.page.goto(this.options.serverUrl + '/--tests', {waitUntil: 'load'});
-    await this.page.setContent('<!doctype html><html><head></head><body></body></html>', {
-      waitUntil: 'load'
+    await this.page.evaluate(() => {
+      document.documentElement.innerHTML = '<head></head><body></body>';
     });
 
     // forward console messages only after the page is set up
@@ -35,7 +35,7 @@ export default class TestWorker extends EventServer {
       try {
         this.report(id, event);
         if ((event.type === 'end' && event.test === 0) || event.type === 'terminated') {
-          super.close(id);
+          this.close(id);
         }
       } catch (error) {
         if (!isStopTest(error)) throw error;
@@ -62,78 +62,92 @@ export default class TestWorker extends EventServer {
           if (!isStopTest(error)) throw error;
         }
       }
-      super.close(id);
+      this.close(id);
     });
   }
   makeTask(fileName) {
-    if (!supportedExtRe.test(fileName)) {
-      console.warn(`Skipping unsupported file: ${fileName}`);
-      return null;
-    }
     const id = String(++this.counter);
-    this.#ready.then(() => this.#runInIframe(id, fileName));
+    if (!supportedExtRe.test(fileName)) {
+      this.report(id, {
+        name: 'unsupported file type: ' + fileName,
+        test: 0,
+        marker: new Error(),
+        operator: 'error',
+        fail: true
+      });
+      this.report(id, {type: 'terminated', test: 0, name: 'FILE: /' + fileName});
+      this.close(id);
+      return id;
+    }
+    this.#ready
+      .then(() => this.#runInIframe(id, fileName))
+      .catch(error => {
+        console.error('Failed to run test:', fileName, error);
+        this.close(id);
+      });
     return id;
   }
   async #runInIframe(id, fileName) {
     const importmap = this.options.importmap,
       failOnce = this.options.failOnce;
 
-    if (/\.html?$/i.test(fileName)) {
-      const search = new URLSearchParams({id, 'test-file-name': fileName});
-      if (failOnce) search.set('flags', 'F');
-      const url = '/' + fileName + '?' + search.toString();
-      await this.page.evaluate(
-        (url, frameId) => {
-          const iframe = document.createElement('iframe');
-          iframe.id = 'test-iframe-' + frameId;
-          iframe.src = url;
-          iframe.onerror = error => window.__tape6_error(frameId, error);
-          document.body.append(iframe);
-        },
-        url,
-        id
-      );
-    } else {
-      await this.page.evaluate(
-        (frameId, fileName, importmapJson, failOnce) => {
-          const iframe = document.createElement('iframe');
-          iframe.id = 'test-iframe-' + frameId;
-          document.body.append(iframe);
-          iframe.contentWindow.document.open();
-          iframe.contentWindow.document.write(
-            '<!doctype html>' +
-              '<html lang="en"><head>' +
-              '<meta charset="utf-8" />' +
-              (importmapJson ? '<script type="importmap">' + importmapJson + '</script>' : '') +
-              '<script type="module">' +
-              'window.__tape6_id = ' +
-              JSON.stringify(frameId) +
-              ';' +
-              'window.__tape6_testFileName = ' +
-              JSON.stringify(fileName) +
-              ';' +
-              'window.__tape6_flags = "' +
-              (failOnce ? 'F' : '') +
-              '";' +
-              'const s = document.createElement("script");' +
-              's.setAttribute("type", "module");' +
-              's.src = "/' +
-              fileName +
-              '";' +
-              's.onerror = error => window.parent.__tape6_error(' +
-              JSON.stringify(frameId) +
-              ', error && error.message || "Script load error");' +
-              'document.documentElement.appendChild(s);' +
-              '</script>' +
-              '</head><body></body></html>'
-          );
-          iframe.contentWindow.document.close();
-        },
-        id,
-        fileName,
-        importmap ? JSON.stringify(importmap) : null,
-        failOnce
-      );
+    try {
+      if (/\.html?$/i.test(fileName)) {
+        const search = new URLSearchParams({id, 'test-file-name': fileName});
+        if (failOnce) search.set('flags', 'F');
+        const url = '/' + fileName + '?' + search.toString();
+        await this.page.evaluate(
+          (url, frameId) => {
+            const iframe = document.createElement('iframe');
+            iframe.id = 'test-iframe-' + frameId;
+            iframe.src = url;
+            iframe.onerror = error => window.__tape6_error(frameId, error);
+            document.body.append(iframe);
+          },
+          url,
+          id
+        );
+      } else {
+        const html =
+          '<!doctype html>' +
+          '<html lang="en"><head>' +
+          '<meta charset="utf-8" />' +
+          (importmap ? '<script type="importmap">' + JSON.stringify(importmap) + '<\/script>' : '') +
+          '<script type="module">' +
+          'window.__tape6_id = ' +
+          JSON.stringify(id) +
+          ';' +
+          'window.__tape6_testFileName = ' +
+          JSON.stringify(fileName) +
+          ';' +
+          'window.__tape6_flags = "' +
+          (failOnce ? 'F' : '') +
+          '";' +
+          'const s = document.createElement("script");' +
+          's.setAttribute("type", "module");' +
+          's.src = "/' +
+          fileName +
+          '";' +
+          's.onerror = error => window.parent.__tape6_error(' +
+          JSON.stringify(id) +
+          ', error && error.message || "Script load error");' +
+          'document.documentElement.appendChild(s);' +
+          '<\/script>' +
+          '</head><body></body></html>';
+        await this.page.evaluate(
+          (frameId, srcdoc) => {
+            const iframe = document.createElement('iframe');
+            iframe.id = 'test-iframe-' + frameId;
+            iframe.srcdoc = srcdoc;
+            document.body.append(iframe);
+          },
+          id,
+          html
+        );
+      }
+    } catch (error) {
+      console.error('Failed to create iframe for:', fileName, error);
+      this.close(id);
     }
   }
   destroyTask(id) {
