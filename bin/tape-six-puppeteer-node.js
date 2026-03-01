@@ -1,42 +1,37 @@
 #!/usr/bin/env node
 
-import process from 'node:process'
-import os from 'node:os'
-import {fileURLToPath} from 'node:url'
-import {spawn} from 'node:child_process'
+import process from 'node:process';
+import os from 'node:os';
+import {fileURLToPath} from 'node:url';
+import {spawn} from 'node:child_process';
 
-import {
-  getReporterFileName,
-  getReporterType,
-  resolvePatterns,
-  runtime
-} from 'tape-six/utils/config.js'
+import {getReporterFileName, getReporterType, resolvePatterns} from 'tape-six/utils/config.js';
 
-import {getReporter, setReporter} from 'tape-six/test.js'
-import {selectTimer} from 'tape-six/utils/timer.js'
+import {getReporter, setReporter} from 'tape-six/test.js';
+import {selectTimer} from 'tape-six/utils/timer.js';
 
-import TestWorker from '../src/TestWorker.js'
+import TestWorker from '../src/TestWorker.js';
 
 const options = {},
-  rootFolder = process.cwd()
+  rootFolder = process.cwd();
 
 let flags = '',
   parallel = '',
   files = [],
-  startServer = false
+  startServer = false;
 
 const showSelf = () => {
-  const self = new URL(import.meta.url)
+  const self = new URL(import.meta.url);
   if (self.protocol === 'file:') {
-    console.log(fileURLToPath(self))
+    console.log(fileURLToPath(self));
   } else {
-    console.log(self)
+    console.log(self);
   }
-  process.exit(0)
-}
+  process.exit(0);
+};
 
 const config = () => {
-  if (process.argv.includes('--self')) showSelf()
+  if (process.argv.includes('--self')) showSelf();
 
   const optionNames = {
     f: 'failureOnly',
@@ -48,80 +43,80 @@ const config = () => {
     m: 'monochrome',
     c: 'dontCaptureConsole',
     h: 'hideStreams'
-  }
+  };
 
-  let parIsSet = false
+  let parIsSet = false;
 
   for (let i = 2; i < process.argv.length; ++i) {
-    const arg = process.argv[i]
+    const arg = process.argv[i];
     if (arg == '-f' || arg == '--flags') {
       if (++i < process.argv.length) {
-        flags += process.argv[i]
+        flags += process.argv[i];
       }
-      continue
+      continue;
     }
     if (arg == '-p' || arg == '--par') {
       if (++i < process.argv.length) {
-        parallel = process.argv[i]
-        parIsSet = true
+        parallel = process.argv[i];
+        parIsSet = true;
         if (!parallel || isNaN(parallel)) {
-          parallel = ''
-          parIsSet = false
+          parallel = '';
+          parIsSet = false;
         }
       }
-      continue
+      continue;
     }
     if (arg == '--start-server') {
-      startServer = true
-      continue
+      startServer = true;
+      continue;
     }
-    files.push(arg)
+    files.push(arg);
   }
 
-  flags = (process.env.TAPE6_FLAGS || '') + flags
+  flags = (process.env.TAPE6_FLAGS || '') + flags;
   for (let i = 0; i < flags.length; ++i) {
     const option = flags[i].toLowerCase(),
-      name = optionNames[option]
-    if (typeof name == 'string') options[name] = option !== flags[i]
+      name = optionNames[option];
+    if (typeof name == 'string') options[name] = option !== flags[i];
   }
-  options.flags = flags
+  options.flags = flags;
 
   if (!parIsSet) {
-    parallel = process.env.TAPE6_PAR || parallel
+    parallel = process.env.TAPE6_PAR || parallel;
   }
   if (parallel) {
-    parallel = Math.max(0, +parallel)
-    if (parallel === Infinity) parallel = 0
+    parallel = Math.max(0, +parallel);
+    if (parallel === Infinity) parallel = 0;
   } else {
-    parallel = 0
+    parallel = 0;
   }
   if (!parallel) {
     if (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) {
-      parallel = navigator.hardwareConcurrency
+      parallel = navigator.hardwareConcurrency;
     } else {
       try {
-        parallel = os.availableParallelism()
+        parallel = os.availableParallelism();
       } catch (e) {
-        void e
-        parallel = 1
+        void e;
+        parallel = 1;
       }
     }
   }
-}
+};
 
 const getServerUrl = () => {
-  if (process.env.TAPE6_SERVER_URL) return process.env.TAPE6_SERVER_URL.replace(/\/+$/, '')
+  if (process.env.TAPE6_SERVER_URL) return process.env.TAPE6_SERVER_URL.replace(/\/+$/, '');
   const host = process.env.HOST || 'localhost',
-    port = process.env.PORT || '3000'
-  return `http://${host}:${port}`
-}
+    port = process.env.PORT || '3000';
+  return `http://${host}:${port}`;
+};
 
 const ensureServer = async serverUrl => {
   try {
-    const res = await fetch(serverUrl + '/--tests')
-    if (res.ok) return null
+    const res = await fetch(serverUrl + '/--tests');
+    if (res.ok) return null;
   } catch (e) {
-    void e
+    void e;
   }
 
   if (!startServer) {
@@ -131,39 +126,43 @@ const ensureServer = async serverUrl => {
         '  npx tape6-server\n\n' +
         'Or re-run with --start-server:\n' +
         '  tape6-puppeteer --start-server --flags FO\n'
-    )
-    process.exit(1)
+    );
+    process.exit(1);
   }
 
   // start the server
   const serverBin = fileURLToPath(
     new URL('../node_modules/tape-six/bin/tape6-server.js', import.meta.url)
-  )
+  );
   const child = spawn(process.execPath, [serverBin], {
     cwd: rootFolder,
     stdio: 'ignore',
     detached: false,
-    env: {...process.env, HOST: new URL(serverUrl).hostname, PORT: new URL(serverUrl).port || '3000'}
-  })
-  child.unref()
+    env: {
+      ...process.env,
+      HOST: new URL(serverUrl).hostname,
+      PORT: new URL(serverUrl).port || '3000'
+    }
+  });
+  child.unref();
 
   // wait for server to become available
   for (let i = 0; i < 30; ++i) {
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await new Promise(resolve => setTimeout(resolve, 500));
     try {
-      const res = await fetch(serverUrl + '/--tests')
-      if (res.ok) return child
+      const res = await fetch(serverUrl + '/--tests');
+      if (res.ok) return child;
     } catch (e) {
-      void e
+      void e;
     }
   }
 
-  console.error(`Error: tape6-server failed to start at ${serverUrl}`)
-  process.exit(1)
-}
+  console.error(`Error: tape6-server failed to start at ${serverUrl}`);
+  process.exit(1);
+};
 
 const init = async () => {
-  const currentReporter = getReporter()
+  const currentReporter = getReporter();
   if (!currentReporter) {
     const reporterType = getReporterType(),
       reporterFile = getReporterFileName(reporterType),
@@ -174,53 +173,52 @@ const init = async () => {
         process.env.NODE_DISABLE_COLORS ||
         process.env.FORCE_COLOR === '0'
       ),
-      customOptions =
-        reporterType === 'tap' ? {useJson: true, hasColors} : {...options, hasColors},
-      customReporter = new CustomReporter(customOptions)
-    setReporter(customReporter)
+      customOptions = reporterType === 'tap' ? {useJson: true, hasColors} : {...options, hasColors},
+      customReporter = new CustomReporter(customOptions);
+    setReporter(customReporter);
   }
 
   if (files.length) {
-    files = await resolvePatterns(rootFolder, files)
+    files = await resolvePatterns(rootFolder, files);
   }
-}
+};
 
 const main = async () => {
-  config()
-  await init()
-  await selectTimer()
+  config();
+  await init();
+  await selectTimer();
 
   process.on('uncaughtException', (error, origin) => {
-    console.error('UNHANDLED ERROR:', origin, error)
-    process.exit(1)
-  })
+    console.error('UNHANDLED ERROR:', origin, error);
+    process.exit(1);
+  });
 
-  const serverUrl = getServerUrl()
-  const serverChild = await ensureServer(serverUrl)
+  const serverUrl = getServerUrl();
+  const serverChild = await ensureServer(serverUrl);
 
   // fetch test files from server if none specified on CLI
   if (!files.length) {
     try {
-      const res = await fetch(serverUrl + '/--tests')
-      if (res.ok) files = await res.json()
+      const res = await fetch(serverUrl + '/--tests');
+      if (res.ok) files = await res.json();
     } catch (e) {
-      void e
+      void e;
     }
   }
 
   if (!files.length) {
-    console.log('No files found.')
-    serverChild && serverChild.kill()
-    process.exit(1)
+    console.log('No files found.');
+    serverChild && serverChild.kill();
+    process.exit(1);
   }
 
   // fetch importmap from server
-  let importmap = null
+  let importmap = null;
   try {
-    const res = await fetch(serverUrl + '/--importmap')
-    if (res.ok) importmap = await res.json()
+    const res = await fetch(serverUrl + '/--importmap');
+    if (res.ok) importmap = await res.json();
   } catch (e) {
-    void e
+    void e;
   }
 
   const reporter = getReporter(),
@@ -228,27 +226,27 @@ const main = async () => {
       ...options,
       serverUrl,
       importmap
-    })
+    });
 
-  reporter.report({type: 'test', test: 0})
+  reporter.report({type: 'test', test: 0});
 
   await new Promise(resolve => {
-    worker.done = () => resolve()
-    worker.execute(files)
-  })
+    worker.done = () => resolve();
+    worker.execute(files);
+  });
 
-  const hasFailed = reporter.state && reporter.state.failed > 0
+  const hasFailed = reporter.state && reporter.state.failed > 0;
 
   reporter.report({
     type: 'end',
     test: 0,
     fail: hasFailed
-  })
+  });
 
-  await worker.close()
+  await worker.close();
 
-  serverChild && serverChild.kill()
-  process.exit(hasFailed ? 1 : 0)
-}
+  serverChild && serverChild.kill();
+  process.exit(hasFailed ? 1 : 0);
+};
 
-main().catch(error => console.error('ERROR:', error))
+main().catch(error => console.error('ERROR:', error));

@@ -26,14 +26,14 @@ Puppeteer's bundled Chromium is installed automatically via `postinstall`.
 1. Write tests using [tape-six](https://www.npmjs.com/package/tape-six) that use browser APIs:
 
 ```js
-import test from 'tape-six'
+import test from 'tape-six';
 
 test('DOM works', t => {
-  const el = document.createElement('div')
-  el.textContent = 'hello'
-  document.body.appendChild(el)
-  t.equal(document.body.lastChild.textContent, 'hello', 'element created')
-})
+  const el = document.createElement('div');
+  el.textContent = 'hello';
+  document.body.appendChild(el);
+  t.equal(document.body.lastChild.textContent, 'hello', 'element created');
+});
 ```
 
 2. Configure tests in `package.json`:

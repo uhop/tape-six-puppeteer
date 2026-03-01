@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 
-import process from 'node:process'
-import {fileURLToPath} from 'node:url'
+import process from 'node:process';
+import {fileURLToPath} from 'node:url';
 
 if (process.argv.includes('--self')) {
-  const self = new URL(import.meta.url)
+  const self = new URL(import.meta.url);
   if (self.protocol === 'file:') {
-    console.log(fileURLToPath(self))
+    console.log(fileURLToPath(self));
   } else {
-    console.log(self)
+    console.log(self);
   }
 } else {
-  await import('./tape-six-puppeteer-node.js')
+  await import('./tape-six-puppeteer-node.js');
 }

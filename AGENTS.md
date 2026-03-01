@@ -76,13 +76,13 @@ tape-six-puppeteer/
 Tests are standard `tape-six` tests that run in a real browser environment:
 
 ```js
-import test from 'tape-six'
+import test from 'tape-six';
 
 test('DOM example', t => {
-  const el = document.createElement('div')
-  el.textContent = 'hello'
-  t.equal(el.textContent, 'hello', 'element works')
-})
+  const el = document.createElement('div');
+  el.textContent = 'hello';
+  t.equal(el.textContent, 'hello', 'element works');
+});
 ```
 
 - `.js` and `.mjs` files run as ES modules in an iframe with an injected importmap.

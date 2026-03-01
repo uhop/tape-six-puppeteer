@@ -13,28 +13,34 @@
       }
     </script>
     <script type="module">
-      import test from 'tape-six'
+      import test from 'tape-six';
 
       test('HTML document structure', t => {
-        t.ok(document.doctype, 'doctype exists')
-        t.equal(document.title, 'HTML test', 'title matches')
-        t.ok(document.querySelector('p#greeting'), 'paragraph found')
-        t.equal(document.querySelector('p#greeting').textContent, 'Hello from HTML test', 'text matches')
-      })
+        t.ok(document.doctype, 'doctype exists');
+        t.equal(document.title, 'HTML test', 'title matches');
+        t.ok(document.querySelector('p#greeting'), 'paragraph found');
+        t.equal(
+          document.querySelector('p#greeting').textContent,
+          'Hello from HTML test',
+          'text matches'
+        );
+      });
 
       test('inline styles', t => {
-        const el = document.querySelector('#styled')
-        const style = getComputedStyle(el)
-        t.equal(el.tagName, 'DIV', 'element is a div')
-        t.ok(el.style.color, 'has inline color style')
-      })
+        const el = document.querySelector('#styled');
+        const style = getComputedStyle(el);
+        t.equal(el.tagName, 'DIV', 'element is a div');
+        t.ok(el.style.color, 'has inline color style');
+      });
     </script>
     <style>
-      #styled { font-weight: bold; }
+      #styled {
+        font-weight: bold;
+      }
     </style>
   </head>
   <body>
     <p id="greeting">Hello from HTML test</p>
-    <div id="styled" style="color: red;">Styled element</div>
+    <div id="styled" style="color: red">Styled element</div>
   </body>
 </html>
