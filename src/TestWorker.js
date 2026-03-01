@@ -112,7 +112,9 @@ export default class TestWorker extends EventServer {
           '<!doctype html>' +
           '<html lang="en"><head>' +
           '<meta charset="utf-8" />' +
-          (importmap ? '<script type="importmap">' + JSON.stringify(importmap) + '<\/script>' : '') +
+          (importmap
+            ? '<script type="importmap">' + JSON.stringify(importmap) + '<\/script>'
+            : '') +
           '<script type="module">' +
           'window.__tape6_id = ' +
           JSON.stringify(id) +
