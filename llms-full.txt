@@ -173,7 +173,7 @@ Extends `EventServer` from `tape-six`. Manages Puppeteer browser and iframe exec
 - **`constructor(reporter, numberOfTasks, options)`** — launches headless Chrome, creates a page, exposes `__tape6_reporter` and `__tape6_error` as page globals.
 - **`makeTask(fileName)`** — creates an iframe for the test file. Returns a task ID.
 - **`destroyTask(id)`** — removes the iframe from the page.
-- **`close()`** — closes the browser.
+- **`cleanup()`** — closes the browser.
 
 ### Iframe lifecycle
 

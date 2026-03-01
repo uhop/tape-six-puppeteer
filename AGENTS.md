@@ -43,7 +43,6 @@ tape-six-puppeteer/
 
 - **ES modules** throughout (`"type": "module"` in package.json).
 - **Prettier** for formatting (see `.prettierrc`).
-- No semicolons — enforced by Prettier config (see `.prettierrc`).
 - Imports at the top of files, using `import` syntax.
 - The package name is `tape-six-puppeteer` but the CLI command is `tape6-puppeteer`.
 

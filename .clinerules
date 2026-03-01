@@ -19,7 +19,6 @@ tape-six-puppeteer is a Puppeteer-based browser test runner for tape-six. Runs e
 - Prettier: 100 char width, single quotes, no bracket spacing, no trailing commas, arrow parens "avoid" (see `.prettierrc`).
 - 2-space indentation.
 - Imports at top of file, using `import` syntax. No dynamic imports unless necessary.
-- No semicolons — follow existing patterns.
 
 ## Architecture quick reference
 

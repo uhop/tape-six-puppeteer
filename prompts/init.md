@@ -14,8 +14,8 @@ Eventually the project will be published on `npm`.
 # Technical details
 
 Just like `tape-six-proc`, the project should use `tape-six` as a dependency and define
-a special `TestWorker.js`. The only public interafce is two scripts in `bin/` directory:
-`tape-six-puppeteer` and `tape-six-puppeteer-node` simialr to `tape-six-proc`.
+a special `TestWorker.js`. The only public interface is two scripts in `bin/` directory:
+`tape-six-puppeteer` and `tape-six-puppeteer-node` similar to `tape-six-proc`.
 
 This new `TestWorker.js` can be based on the code in `../tape-six/tests/puppeteer-chrome.js`.
 
@@ -77,7 +77,7 @@ Don't forget to configure tests like `tape-six` does.
 
 `npm test` should run headless tests provided by this project.
 
-GitHub CI should run them in different environments (Node versions: 20, 22, 24, 25, and on Ubintu, Mac, Windows) just like `tape-six-proc` does.
+GitHub CI should run them in different environments (Node versions: 20, 22, 24, 25, and on Ubuntu, Mac, Windows) just like `tape-six-proc` does.
 
 # Approach
 
