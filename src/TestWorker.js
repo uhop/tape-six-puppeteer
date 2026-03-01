@@ -22,7 +22,9 @@ export default class TestWorker extends EventServer {
 
     // navigate to server so iframes inherit the correct origin
     await this.page.goto(this.options.serverUrl + '/--tests', {waitUntil: 'load'});
-    await this.page.setContent('<!doctype html><html><head></head><body></body></html>', {waitUntil: 'load'});
+    await this.page.setContent('<!doctype html><html><head></head><body></body></html>', {
+      waitUntil: 'load'
+    });
 
     // forward console messages only after the page is set up
     this.page.on('console', msg =>
