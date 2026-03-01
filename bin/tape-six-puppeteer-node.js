@@ -188,13 +188,18 @@ const main = async () => {
   await init();
   await selectTimer();
 
-  process.on('uncaughtException', (error, origin) => {
-    console.error('UNHANDLED ERROR:', origin, error);
-    process.exit(1);
-  });
-
   const serverUrl = getServerUrl();
   const serverChild = await ensureServer(serverUrl);
+
+  const shutdown = code => {
+    serverChild && serverChild.kill();
+    process.exit(code);
+  };
+
+  process.on('uncaughtException', (error, origin) => {
+    console.error('UNHANDLED ERROR:', origin, error);
+    shutdown(1);
+  });
 
   // fetch test files from server if none specified on CLI
   if (!files.length) {
@@ -208,8 +213,7 @@ const main = async () => {
 
   if (!files.length) {
     console.log('No files found.');
-    serverChild && serverChild.kill();
-    process.exit(1);
+    shutdown(1);
   }
 
   // fetch importmap from server
@@ -245,8 +249,10 @@ const main = async () => {
 
   await worker.cleanup();
 
-  serverChild && serverChild.kill();
-  process.exit(hasFailed ? 1 : 0);
+  shutdown(hasFailed ? 1 : 0);
 };
 
-main().catch(error => console.error('ERROR:', error));
+main().catch(error => {
+  console.error('ERROR:', error);
+  process.exit(1);
+});
