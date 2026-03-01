@@ -243,7 +243,7 @@ const main = async () => {
     fail: hasFailed
   });
 
-  await worker.close();
+  await worker.cleanup();
 
   serverChild && serverChild.kill();
   process.exit(hasFailed ? 1 : 0);

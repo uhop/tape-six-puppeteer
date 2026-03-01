@@ -6,14 +6,15 @@ import EventServer from 'tape-six/utils/EventServer.js';
 const supportedExtRe = /\.(?:js|mjs|htm|html)$/i;
 
 export default class TestWorker extends EventServer {
+  #ready;
   constructor(reporter, numberOfTasks, options) {
     super(reporter, numberOfTasks, options);
     this.counter = 0;
     this.browser = null;
     this.page = null;
-    this._ready = this._init();
+    this.#ready = this.#init();
   }
-  async _init() {
+  async #init() {
     this.browser = await puppeteer.launch({headless: true, args: ['--no-sandbox']});
     this.page = await this.browser.newPage();
 
@@ -21,11 +22,7 @@ export default class TestWorker extends EventServer {
 
     // navigate to server so iframes inherit the correct origin
     await this.page.goto(this.options.serverUrl + '/--tests', {waitUntil: 'load'});
-    await this.page.evaluate(() => {
-      document.open();
-      document.write('<!doctype html><html><head></head><body></body></html>');
-      document.close();
-    });
+    await this.page.setContent('<!doctype html><html><head></head><body></body></html>', {waitUntil: 'load'});
 
     // forward console messages only after the page is set up
     this.page.on('console', msg =>
@@ -72,12 +69,11 @@ export default class TestWorker extends EventServer {
       return null;
     }
     const id = String(++this.counter);
-    this._ready.then(() => this._runInIframe(id, fileName));
+    this.#ready.then(() => this.#runInIframe(id, fileName));
     return id;
   }
-  async _runInIframe(id, fileName) {
-    const serverUrl = this.options.serverUrl,
-      importmap = this.options.importmap,
+  async #runInIframe(id, fileName) {
+    const importmap = this.options.importmap,
       failOnce = this.options.failOnce;
 
     if (/\.html?$/i.test(fileName)) {
@@ -147,7 +143,7 @@ export default class TestWorker extends EventServer {
       }, id)
       .catch(() => {});
   }
-  async close() {
+  async cleanup() {
     if (this.browser) {
       await this.browser.close();
       this.browser = null;
