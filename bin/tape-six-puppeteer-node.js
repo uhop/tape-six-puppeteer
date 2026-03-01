@@ -200,7 +200,7 @@ const main = async () => {
   if (!files.length) {
     try {
       const response = await fetch(serverUrl + '/--tests');
-      if (response.ok) files = await res.json();
+      if (response.ok) files = await response.json();
     } catch (error) {
       void error;
     }
