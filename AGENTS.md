@@ -67,7 +67,7 @@ tape-six-puppeteer/
 
 - `--start-server` flag auto-starts the server.
 - Without it, the server must be running. The runner prints instructions if it's unreachable.
-- Server URL: `TAPE6_SERVER_URL` env var, or `HOST`/`PORT`, or default `http://localhost:3000`.
+- Server URL: `--server-url URL` (`-u`), `TAPE6_SERVER_URL` env var, `HOST`/`PORT`, or default `http://localhost:3000`.
 - Server endpoints used: `GET /--tests` (test file list), `GET /--importmap` (import map).
 
 ## Writing tests

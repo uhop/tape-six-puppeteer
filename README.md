@@ -68,7 +68,7 @@ npm test
 
 - **Auto-start:** use `--start-server` to launch it automatically.
 - **Manual:** run `npx tape6-server` in a separate terminal, then run tests without `--start-server`.
-- **Custom URL:** set `TAPE6_SERVER_URL` or `HOST`/`PORT` environment variables.
+- **Custom URL:** use `--server-url URL` (`-u`), or set `TAPE6_SERVER_URL` or `HOST`/`PORT` environment variables.
 
 ## Cross-runtime usage
 

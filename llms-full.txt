@@ -44,7 +44,7 @@ tape6-puppeteer --start-server --flags FO
 Runs test files in parallel, each in its own iframe inside headless Chrome.
 
 ```bash
-tape6-puppeteer [--flags FLAGS] [--par N] [--start-server] [--info] [tests...]
+tape6-puppeteer [--flags FLAGS] [--par N] [--start-server] [--server-url URL] [--info] [tests...]
 ```
 
 ### Options
@@ -52,6 +52,7 @@ tape6-puppeteer [--flags FLAGS] [--par N] [--start-server] [--info] [tests...]
 - `--flags FLAGS` (`-f`) — output control flags (see Supported flags below).
 - `--par N` (`-p`) — number of parallel iframes. Default: all CPU cores (via `os.availableParallelism()` or `navigator.hardwareConcurrency`).
 - `--start-server` — auto-start `tape6-server` if not already running.
+- `--server-url URL` (`-u`) — server URL. Overrides `TAPE6_SERVER_URL` and `HOST`/`PORT`.
 - `--self` — prints the absolute path to `tape-six-puppeteer.js` and exits. Used in cross-runtime scripts.
 - `--info` — prints runtime, reporter, flags, parallelism, and resolved test files, then exits. Does not require a running server.
 - Positional arguments: test file glob patterns. If none given, resolved from configuration.
@@ -144,7 +145,7 @@ The `importmap` section is served by `tape6-server` at `/--importmap` and inject
 - `TAPE6_TAP` — force TAP reporter (any non-empty value).
 - `TAPE6_JSONL` — force JSONL reporter (any non-empty value).
 - `TAPE6_MIN` — force minimal reporter (any non-empty value).
-- `TAPE6_SERVER_URL` — full server URL override (e.g. `http://localhost:4000`).
+- `TAPE6_SERVER_URL` — full server URL override (e.g. `http://localhost:4000`). Overridden by `--server-url`.
 - `HOST` — server hostname (default: `localhost`).
 - `PORT` — server port (default: `3000`).
 
@@ -159,9 +160,9 @@ The `importmap` section is served by `tape6-server` at `/--importmap` and inject
 
 ### Main CLI (`bin/tape-six-puppeteer-node.js`)
 
-1. Parses CLI arguments via `getOptions()` from `tape-six` (`--flags`, `--par`, `--start-server`, positional test patterns).
-2. Ensures `tape6-server` is reachable (auto-starts if `--start-server`).
-3. Resolves test files via `initFiles()` and initializes the reporter via `initReporter()` from `tape-six`.
+1. Parses CLI arguments via `getOptions()` from `tape-six` (`--flags`, `--par`, `--start-server`, `--server-url`, `--info`, positional test patterns).
+2. Initializes the reporter via `initReporter()` from `tape-six`.
+3. Ensures `tape6-server` is reachable (auto-starts if `--start-server`).
 4. Fetches importmap from `GET /--importmap`.
 5. Creates a `TestWorker` instance and executes all test files.
 6. Reports final results and exits with code 0 (success) or 1 (failures).

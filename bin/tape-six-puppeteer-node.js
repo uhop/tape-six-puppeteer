@@ -24,7 +24,7 @@ const showSelf = () => {
 };
 
 const getServerUrl = () => {
-  if (process.env.TAPE6_SERVER_URL) return process.env.TAPE6_SERVER_URL.replace(/\/+$/, '');
+  if (process.env.TAPE6_SERVER_URL) return process.env.TAPE6_SERVER_URL;
   const host = process.env.HOST || 'localhost',
     port = process.env.PORT || '3000';
   return `http://${host}:${port}`;
@@ -84,7 +84,8 @@ const main = async () => {
   const options = getOptions({
     '--self': showSelf,
     '--start-server': {isValueRequired: false},
-    '--info': {isValueRequired: false}
+    '--info': {isValueRequired: false},
+    '--server-url': {aliases: ['-u'], initialValue: getServerUrl(), isValueRequired: true}
   });
 
   await Promise.all([initReporter(getReporter, setReporter, options.flags), selectTimer()]);
@@ -97,7 +98,7 @@ const main = async () => {
 
   const startServer = options.optionFlags['--start-server'] === '';
 
-  const serverUrl = getServerUrl();
+  const serverUrl = options.optionFlags['--server-url'].replace(/\/+$/, '');
   const serverChild = await ensureServer(serverUrl, startServer);
 
   const shutdown = code => {

@@ -54,7 +54,7 @@ test('DOM test', t => {
 ## CLI: tape6-puppeteer
 
 ```bash
-tape6-puppeteer [--flags FLAGS] [--par N] [--start-server] [--info] [tests...]
+tape6-puppeteer [--flags FLAGS] [--par N] [--start-server] [--server-url URL] [--info] [tests...]
 ```
 
 ### Options
@@ -62,6 +62,7 @@ tape6-puppeteer [--flags FLAGS] [--par N] [--start-server] [--info] [tests...]
 - `--flags FLAGS` (`-f`) — output control flags (same as tape6: F=failures only, T=time, B=banner, D=data, O=fail once, N=assert number, M=monochrome, C=don't capture console, H=hide streams). Can be specified multiple times.
 - `--par N` (`-p`) — number of parallel iframes (default: all CPU cores).
 - `--start-server` — auto-start `tape6-server` if not already running.
+- `--server-url URL` (`-u`) — server URL (overrides `TAPE6_SERVER_URL`).
 - `--self` — prints the path to `tape-six-puppeteer.js` (for cross-runtime scripts).
 - `--info` — prints runtime, reporter, flags, parallelism, and resolved test files, then exits.
 - No arguments: runs tests from configuration.
