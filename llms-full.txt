@@ -44,7 +44,7 @@ tape6-puppeteer --start-server --flags FO
 Runs test files in parallel, each in its own iframe inside headless Chrome.
 
 ```bash
-tape6-puppeteer [--flags FLAGS] [--par N] [--start-server] [tests...]
+tape6-puppeteer [--flags FLAGS] [--par N] [--start-server] [--info] [tests...]
 ```
 
 ### Options
@@ -53,7 +53,8 @@ tape6-puppeteer [--flags FLAGS] [--par N] [--start-server] [tests...]
 - `--par N` (`-p`) — number of parallel iframes. Default: all CPU cores (via `os.availableParallelism()` or `navigator.hardwareConcurrency`).
 - `--start-server` — auto-start `tape6-server` if not already running.
 - `--self` — prints the absolute path to `tape-six-puppeteer.js` and exits. Used in cross-runtime scripts.
-- Positional arguments: test file glob patterns. If none given, fetches from server.
+- `--info` — prints runtime, reporter, flags, parallelism, and resolved test files, then exits. Does not require a running server.
+- Positional arguments: test file glob patterns. If none given, resolved from configuration.
 
 ### Examples
 
@@ -158,10 +159,10 @@ The `importmap` section is served by `tape6-server` at `/--importmap` and inject
 
 ### Main CLI (`bin/tape-six-puppeteer-node.js`)
 
-1. Parses CLI arguments (`--flags`, `--par`, `--start-server`, positional test patterns).
-2. Selects reporter: TTY (default for terminals), TAP, JSONL, or Min (based on environment variables).
-3. Ensures `tape6-server` is reachable (auto-starts if `--start-server`).
-4. Fetches test files from `GET /--tests` and importmap from `GET /--importmap`.
+1. Parses CLI arguments via `getOptions()` from `tape-six` (`--flags`, `--par`, `--start-server`, positional test patterns).
+2. Ensures `tape6-server` is reachable (auto-starts if `--start-server`).
+3. Resolves test files via `initFiles()` and initializes the reporter via `initReporter()` from `tape-six`.
+4. Fetches importmap from `GET /--importmap`.
 5. Creates a `TestWorker` instance and executes all test files.
 6. Reports final results and exits with code 0 (success) or 1 (failures).
 7. Kills auto-started server on exit.
@@ -200,7 +201,7 @@ iframe tape-six → ProxyReporter → window.parent.__tape6_reporter(id, event)
 
 ## Dependencies
 
-- **`tape-six`** — the core test library. Imports: `State.js`, `utils/EventServer.js`, `utils/config.js`, `test.js`, reporters (`TTYReporter`, `TapReporter`, `JSONLReporter`, `MinReporter`), `utils/timer.js`.
+- **`tape-six`** — the core test library. Imports: `State.js`, `utils/EventServer.js`, `utils/config.js` (`getOptions`, `initFiles`, `initReporter`), `test.js`, `utils/timer.js`.
 - **`puppeteer`** — headless Chrome automation. Bundled Chromium installed via `postinstall`.
 
 ## Writing tests

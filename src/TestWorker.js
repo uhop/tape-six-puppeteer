@@ -89,12 +89,12 @@ export default class TestWorker extends EventServer {
   }
   async #runInIframe(id, fileName) {
     const importmap = this.options.importmap,
-      failOnce = this.options.failOnce;
+      flags = this.options.flags || '';
 
     try {
       if (/\.html?$/i.test(fileName)) {
         const search = new URLSearchParams({id, 'test-file-name': fileName});
-        if (failOnce) search.set('flags', 'F');
+        if (flags) search.set('flags', flags);
         const url = '/' + fileName + '?' + search.toString();
         await this.page.evaluate(
           (url, frameId) => {
@@ -122,9 +122,9 @@ export default class TestWorker extends EventServer {
           'window.__tape6_testFileName = ' +
           JSON.stringify(fileName) +
           ';' +
-          'window.__tape6_flags = "' +
-          (failOnce ? 'F' : '') +
-          '";' +
+          'window.__tape6_flags = ' +
+          JSON.stringify(flags) +
+          ';' +
           'const s = document.createElement("script");' +
           's.setAttribute("type", "module");' +
           's.src = "/' +

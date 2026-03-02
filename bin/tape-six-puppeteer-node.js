@@ -1,24 +1,17 @@
 #!/usr/bin/env node
 
 import process from 'node:process';
-import os from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {spawn} from 'node:child_process';
 
-import {getReporterFileName, getReporterType, resolvePatterns} from 'tape-six/utils/config.js';
+import {getOptions, initFiles, initReporter, showInfo} from 'tape-six/utils/config.js';
 
 import {getReporter, setReporter} from 'tape-six/test.js';
 import {selectTimer} from 'tape-six/utils/timer.js';
 
 import TestWorker from '../src/TestWorker.js';
 
-const options = {},
-  rootFolder = process.cwd();
-
-let flags = '',
-  parallel = '',
-  files = [],
-  startServer = false;
+const rootFolder = process.cwd();
 
 const showSelf = () => {
   const self = new URL(import.meta.url);
@@ -30,80 +23,6 @@ const showSelf = () => {
   process.exit(0);
 };
 
-const config = () => {
-  if (process.argv.includes('--self')) showSelf();
-
-  const optionNames = {
-    f: 'failureOnly',
-    t: 'showTime',
-    b: 'showBanner',
-    d: 'showData',
-    o: 'failOnce',
-    n: 'showAssertNumber',
-    m: 'monochrome',
-    c: 'dontCaptureConsole',
-    h: 'hideStreams'
-  };
-
-  let parIsSet = false;
-
-  for (let i = 2; i < process.argv.length; ++i) {
-    const arg = process.argv[i];
-    if (arg == '-f' || arg == '--flags') {
-      if (++i < process.argv.length) {
-        flags += process.argv[i];
-      }
-      continue;
-    }
-    if (arg == '-p' || arg == '--par') {
-      if (++i < process.argv.length) {
-        parallel = process.argv[i];
-        parIsSet = true;
-        if (!parallel || isNaN(parallel)) {
-          parallel = '';
-          parIsSet = false;
-        }
-      }
-      continue;
-    }
-    if (arg == '--start-server') {
-      startServer = true;
-      continue;
-    }
-    files.push(arg);
-  }
-
-  flags = (process.env.TAPE6_FLAGS || '') + flags;
-  for (let i = 0; i < flags.length; ++i) {
-    const option = flags[i].toLowerCase(),
-      name = optionNames[option];
-    if (typeof name == 'string') options[name] = option !== flags[i];
-  }
-  options.flags = flags;
-
-  if (!parIsSet) {
-    parallel = process.env.TAPE6_PAR || parallel;
-  }
-  if (parallel) {
-    parallel = Math.max(0, +parallel);
-    if (parallel === Infinity) parallel = 0;
-  } else {
-    parallel = 0;
-  }
-  if (!parallel) {
-    if (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) {
-      parallel = navigator.hardwareConcurrency;
-    } else {
-      try {
-        parallel = os.availableParallelism();
-      } catch (e) {
-        void e;
-        parallel = 1;
-      }
-    }
-  }
-};
-
 const getServerUrl = () => {
   if (process.env.TAPE6_SERVER_URL) return process.env.TAPE6_SERVER_URL.replace(/\/+$/, '');
   const host = process.env.HOST || 'localhost',
@@ -111,7 +30,7 @@ const getServerUrl = () => {
   return `http://${host}:${port}`;
 };
 
-const ensureServer = async serverUrl => {
+const ensureServer = async (serverUrl, startServer) => {
   try {
     const response = await fetch(serverUrl + '/--tests');
     if (response.ok) return null;
@@ -161,38 +80,28 @@ const ensureServer = async serverUrl => {
   process.exit(1);
 };
 
-const init = async () => {
-  const currentReporter = getReporter();
-  if (!currentReporter) {
-    const reporterType = getReporterType(),
-      reporterFile = getReporterFileName(reporterType),
-      CustomReporter = (await import('tape-six/reporters/' + reporterFile)).default,
-      hasColors = !(
-        options.monochrome ||
-        process.env.NO_COLOR ||
-        process.env.NODE_DISABLE_COLORS ||
-        process.env.FORCE_COLOR === '0'
-      ),
-      customOptions = reporterType === 'tap' ? {useJson: true, hasColors} : {...options, hasColors},
-      customReporter = new CustomReporter(customOptions);
-    setReporter(customReporter);
-  }
-
-  if (files.length) {
-    files = await resolvePatterns(rootFolder, files);
-  }
-};
-
 const main = async () => {
-  config();
-  await init();
-  await selectTimer();
+  const options = getOptions({
+    '--self': showSelf,
+    '--start-server': {isValueRequired: false},
+    '--info': {isValueRequired: false}
+  });
+
+  await Promise.all([initReporter(getReporter, setReporter, options.flags), selectTimer()]);
+
+  if (options.optionFlags['--info'] === '') {
+    const files = await initFiles(options.files, rootFolder);
+    showInfo(options, files);
+    process.exit(0);
+  }
+
+  const startServer = options.optionFlags['--start-server'] === '';
 
   const serverUrl = getServerUrl();
-  const serverChild = await ensureServer(serverUrl);
+  const serverChild = await ensureServer(serverUrl, startServer);
 
   const shutdown = code => {
-    serverChild && serverChild.kill();
+    serverChild?.kill();
     process.exit(code);
   };
 
@@ -201,7 +110,8 @@ const main = async () => {
     shutdown(1);
   });
 
-  // fetch test files from server if none specified on CLI
+  // resolve CLI patterns or fetch test files from server
+  let files = options.files.length ? await initFiles(options.files, rootFolder) : [];
   if (!files.length) {
     try {
       const response = await fetch(serverUrl + '/--tests');
@@ -226,8 +136,8 @@ const main = async () => {
   }
 
   const reporter = getReporter(),
-    worker = new TestWorker(reporter, parallel, {
-      ...options,
+    worker = new TestWorker(reporter, options.parallel, {
+      ...options.flags,
       serverUrl,
       importmap
     });
@@ -252,7 +162,4 @@ const main = async () => {
   shutdown(hasFailed ? 1 : 0);
 };
 
-main().catch(error => {
-  console.error('ERROR:', error);
-  process.exit(1);
-});
+main().catch(error => console.error('ERROR:', error));

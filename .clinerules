@@ -23,7 +23,7 @@ tape-six-puppeteer is a Puppeteer-based browser test runner for tape-six. Runs e
 ## Architecture quick reference
 
 - `bin/tape-six-puppeteer.js` is the CLI entry point. With `--self` it prints its own path. Otherwise delegates to `bin/tape-six-puppeteer-node.js`.
-- `bin/tape-six-puppeteer-node.js` parses CLI arguments, sets up the reporter, ensures `tape6-server` is running (with optional `--start-server`), fetches test files and importmap, runs them via `TestWorker`.
+- `bin/tape-six-puppeteer-node.js` uses `getOptions()`, `initFiles()`, and `initReporter()` from `tape-six` for CLI parsing, file resolution, and reporter setup. Ensures `tape6-server` is running (with optional `--start-server`), fetches importmap, runs tests via `TestWorker`.
 - `src/TestWorker.js` extends `EventServer` from `tape-six`. Launches headless Chrome, exposes `__tape6_reporter` and `__tape6_error` globals, runs each test file in a separate iframe.
 - For `.html` files: loaded as iframe `src` with query parameters.
 - For `.js`/`.mjs` files: HTML document written into iframe with importmap and dynamic module script.
