@@ -53,21 +53,35 @@ const ensureServer = async (serverUrl, startServer) => {
   const serverBin = fileURLToPath(
     new URL('../node_modules/tape-six/bin/tape6-server.js', import.meta.url)
   );
+  const host = new URL(serverUrl).hostname,
+    port = new URL(serverUrl).port || '3000';
   const child = spawn(process.execPath, [serverBin], {
     cwd: rootFolder,
-    stdio: 'ignore',
+    stdio: ['ignore', 'ignore', 'pipe'],
     detached: false,
-    env: {
-      ...process.env,
-      HOST: new URL(serverUrl).hostname,
-      PORT: new URL(serverUrl).port || '3000'
-    }
+    env: {...process.env, HOST: host, PORT: port}
+  });
+
+  let exited = false,
+    exitCode = null,
+    stderrData = '';
+  child.stderr.on('data', chunk => (stderrData += chunk));
+  child.on('exit', code => {
+    exited = true;
+    exitCode = code;
   });
   child.unref();
 
   // wait for server to become available
   for (let i = 0; i < 30; ++i) {
     await new Promise(resolve => setTimeout(resolve, 500));
+    if (exited) {
+      console.error(
+        `Error: tape6-server exited with code ${exitCode} while starting on ${host}:${port}` +
+          (stderrData ? '\n' + stderrData.trim() : '')
+      );
+      process.exit(1);
+    }
     try {
       const response = await fetch(serverUrl + '/--tests');
       if (response.ok) return child;
@@ -76,7 +90,11 @@ const ensureServer = async (serverUrl, startServer) => {
     }
   }
 
-  console.error(`Error: tape6-server failed to start at ${serverUrl}`);
+  child.kill();
+  console.error(
+    `Error: tape6-server failed to start on ${host}:${port} (timed out after 15s)` +
+      (stderrData ? '\n' + stderrData.trim() : '')
+  );
   process.exit(1);
 };
 
