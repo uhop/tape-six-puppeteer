@@ -105,6 +105,7 @@ const main = async () => {
     '--info': {isValueRequired: false},
     '--server-url': {aliases: ['-u'], initialValue: getServerUrl(), isValueRequired: true}
   });
+  options.flags.serverUrl = options.optionFlags['--server-url'];
 
   await Promise.all([initReporter(getReporter, setReporter, options.flags), selectTimer()]);
 
