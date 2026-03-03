@@ -4,7 +4,7 @@ import process from 'node:process';
 import {fileURLToPath} from 'node:url';
 import {spawn} from 'node:child_process';
 
-import {getOptions, initFiles, initReporter, showInfo} from 'tape-six/utils/config.js';
+import {getOptions, initReporter, showInfo} from 'tape-six/utils/config.js';
 
 import {getReporter, setReporter} from 'tape-six/test.js';
 import {selectTimer} from 'tape-six/utils/timer.js';
@@ -110,8 +110,7 @@ const main = async () => {
   await Promise.all([initReporter(getReporter, setReporter, options.flags), selectTimer()]);
 
   if (options.optionFlags['--info'] === '') {
-    const files = await initFiles(options.files, rootFolder);
-    showInfo(options, files);
+    showInfo(options, []);
     process.exit(0);
   }
 
@@ -119,6 +118,8 @@ const main = async () => {
 
   const serverUrl = options.optionFlags['--server-url'].replace(/\/+$/, '');
   const serverChild = await ensureServer(serverUrl, startServer);
+
+  console.log(`Connected to ${serverUrl} (${serverChild ? 'self-launched' : 'external'})`);
 
   const shutdown = code => {
     serverChild?.kill();
@@ -130,19 +131,24 @@ const main = async () => {
     shutdown(1);
   });
 
-  // resolve CLI patterns or fetch test files from server
-  let files = options.files.length ? await initFiles(options.files, rootFolder) : [];
-  if (!files.length) {
-    try {
+  // fetch test files from server
+  let files = [];
+  try {
+    if (options.files.length) {
+      const query = options.files.map(p => 'q=' + encodeURIComponent(p)).join('&');
+      const response = await fetch(serverUrl + '/--patterns?' + query);
+      if (response.ok) files = await response.json();
+    }
+    if (!files.length) {
       const response = await fetch(serverUrl + '/--tests');
       if (response.ok) files = await response.json();
-    } catch (error) {
-      void error;
     }
+  } catch (error) {
+    void error;
   }
 
   if (!files.length) {
-    console.log('No files found.');
+    console.log('No test files found on the server.');
     shutdown(1);
   }
 
