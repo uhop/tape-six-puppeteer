@@ -66,6 +66,7 @@ tape6-puppeteer [--flags FLAGS] [--par N] [--start-server] [--server-url URL] [-
 - `--self` — prints the path to `tape-six-puppeteer.js` (for cross-runtime scripts).
 - `--info` — prints runtime, reporter, flags, parallelism, and resolved test files, then exits.
 - No arguments: runs tests from configuration.
+- Options accept `--flags FO` or `--flags=FO`. The `=` form does not support quoting.
 
 ### Cross-runtime usage
 
