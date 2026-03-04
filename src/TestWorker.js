@@ -1,4 +1,3 @@
-import path from 'node:path';
 import puppeteer from 'puppeteer';
 
 import {isStopTest} from 'tape-six/State.js';
@@ -67,10 +66,6 @@ export default class TestWorker extends EventServer {
     });
   }
   makeTask(fileName) {
-    if (path.sep !== path.posix.sep) {
-      // convert to Posix explicitly (Windows-specific)
-      fileName = fileName.split(path.sep).join(path.posix.sep);
-    }
     const id = String(++this.counter);
     if (!supportedExtRe.test(fileName)) {
       this.report(id, {
