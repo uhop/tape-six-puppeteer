@@ -11,5 +11,5 @@ if (process.argv.includes('--self')) {
     console.log(self);
   }
 } else {
-  await import('./tape-six-puppeteer-node.js');
+  await import('./tape6-puppeteer-node.js');
 }

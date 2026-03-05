@@ -63,7 +63,7 @@ tape6-puppeteer [--flags FLAGS] [--par N] [--start-server] [--server-url URL] [-
 - `--par N` (`-p`) — number of parallel iframes (default: all CPU cores).
 - `--start-server` — auto-start `tape6-server` if not already running.
 - `--server-url URL` (`-u`) — server URL (overrides `TAPE6_SERVER_URL`).
-- `--self` — prints the path to `tape-six-puppeteer.js` (for cross-runtime scripts).
+- `--self` — prints the path to `tape6-puppeteer.js` (for cross-runtime scripts).
 - `--info` — prints runtime, reporter, flags, parallelism, and resolved test files, then exits.
 - No arguments: runs tests from configuration.
 - Options accept `--flags FO` or `--flags=FO`. The `=` form does not support quoting.

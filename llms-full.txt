@@ -53,7 +53,7 @@ tape6-puppeteer [--flags FLAGS] [--par N] [--start-server] [--server-url URL] [-
 - `--par N` (`-p`) — number of parallel iframes. Default: all CPU cores (via `os.availableParallelism()` or `navigator.hardwareConcurrency`).
 - `--start-server` — auto-start `tape6-server` if not already running.
 - `--server-url URL` (`-u`) — server URL. Overrides `TAPE6_SERVER_URL` and `HOST`/`PORT`.
-- `--self` — prints the absolute path to `tape-six-puppeteer.js` and exits. Used in cross-runtime scripts.
+- `--self` — prints the absolute path to `tape6-puppeteer.js` and exits. Used in cross-runtime scripts.
 - `--info` — prints runtime, reporter, flags, parallelism, and resolved test files, then exits. Does not require a running server.
 - Positional arguments: test file glob patterns. If none given, resolved from configuration.
 - Options accept `--flags FO` or `--flags=FO`. The `=` form does not support quoting.
@@ -154,12 +154,12 @@ The `importmap` section is served by `tape6-server` at `/--importmap` and inject
 
 ### Entry point
 
-`bin/tape-six-puppeteer.js` is the CLI entry point:
+`bin/tape6-puppeteer.js` is the CLI entry point:
 
 - With `--self`: prints its own absolute path and exits.
-- Otherwise: delegates to `bin/tape-six-puppeteer-node.js`.
+- Otherwise: delegates to `bin/tape6-puppeteer-node.js`.
 
-### Main CLI (`bin/tape-six-puppeteer-node.js`)
+### Main CLI (`bin/tape6-puppeteer-node.js`)
 
 1. Parses CLI arguments via `getOptions()` from `tape-six` (`--flags`, `--par`, `--start-server`, `--server-url`, `--info`, positional test patterns).
 2. Initializes the reporter via `initReporter()` from `tape-six`.

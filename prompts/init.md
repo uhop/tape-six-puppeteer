@@ -15,7 +15,7 @@ Eventually the project will be published on `npm`.
 
 Just like `tape-six-proc`, the project should use `tape-six` as a dependency and define
 a special `TestWorker.js`. The only public interface is two scripts in `bin/` directory:
-`tape-six-puppeteer` and `tape-six-puppeteer-node` similar to `tape-six-proc`.
+`tape6-puppeteer` and `tape6-puppeteer-node` similar to `tape-six-proc`.
 
 This new `TestWorker.js` can be based on the code in `../tape-six/tests/puppeteer-chrome.js`.
 
@@ -35,9 +35,9 @@ See `../tape-six/` and its `tape6-server` for more details.
 
 # CLI contract
 
-`bin/tape-six-puppeteer` should follow the same contract as `bin/tape6`.
+`bin/tape6-puppeteer` should follow the same contract as `bin/tape6`.
 
-`bin/tape-six-puppeteer-node` should follow the same contract as `bin/tape6-node`.
+`bin/tape6-puppeteer-node` should follow the same contract as `bin/tape6-node`.
 
 They should use the same options and arguments. Just like `tape-six-proc` it should return 0
 on success and non-zero on failure.

@@ -4,16 +4,16 @@
   "description": "Puppeteer-based browser test runner for tape-six. Runs each test file in its own iframe inside headless Chrome. Works with Node, Deno, and Bun.",
   "type": "module",
   "bin": {
-    "tape6-puppeteer": "bin/tape-six-puppeteer.js",
-    "tape6-puppeteer-node": "bin/tape-six-puppeteer-node.js"
+    "tape6-puppeteer": "bin/tape6-puppeteer.js",
+    "tape6-puppeteer-node": "bin/tape6-puppeteer-node.js"
   },
   "scripts": {
     "lint": "prettier --check .",
     "lint:fix": "prettier --write .",
     "postinstall": "puppeteer browsers install chrome",
-    "test": "node ./bin/tape-six-puppeteer.js --start-server --flags FO",
-    "test:bun": "bun run ./bin/tape-six-puppeteer.js --start-server --flags FO",
-    "test:deno": "deno run -A ./bin/tape-six-puppeteer.js --start-server --flags FO"
+    "test": "node ./bin/tape6-puppeteer.js --start-server --flags FO",
+    "test:bun": "bun run ./bin/tape6-puppeteer.js --start-server --flags FO",
+    "test:deno": "deno run -A ./bin/tape6-puppeteer.js --start-server --flags FO"
   },
   "keywords": [
     "tap",

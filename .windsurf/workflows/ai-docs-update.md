@@ -8,7 +8,7 @@ Update all AI-facing files after changes to the CLI, architecture, or project st
 
 ## Steps
 
-1. Read `bin/tape-six-puppeteer.js`, `bin/tape-six-puppeteer-node.js`, and `src/TestWorker.js` to identify the current CLI options and architecture.
+1. Read `bin/tape6-puppeteer.js`, `bin/tape6-puppeteer-node.js`, and `src/TestWorker.js` to identify the current CLI options and architecture.
 2. Read `AGENTS.md` for current state.
 3. Update `llms.txt`:
    - Ensure the CLI section matches actual options and behavior.

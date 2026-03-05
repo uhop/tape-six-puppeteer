@@ -29,8 +29,8 @@ There is no build step. `npm install` runs `postinstall` which installs Puppetee
 tape-six-puppeteer/
 ├── package.json          # Package config; "tape6" section configures test discovery
 ├── bin/
-│   ├── tape-six-puppeteer.js     # CLI entry point (--self flag or delegates to -node.js)
-│   └── tape-six-puppeteer-node.js # Main CLI: config, reporter, server, test execution
+│   ├── tape6-puppeteer.js     # CLI entry point (--self flag or delegates to -node.js)
+│   └── tape6-puppeteer-node.js # Main CLI: config, reporter, server, test execution
 ├── src/
 │   └── TestWorker.js     # TestWorker class: launches Puppeteer, runs tests in iframes
 ├── tests/                # Test files (test-*.js, test-*.mjs, test-*.html)
@@ -48,8 +48,8 @@ tape-six-puppeteer/
 
 ## Architecture
 
-- `bin/tape-six-puppeteer.js` is the CLI entry point. With `--self` it prints its own path (for cross-runtime usage). Otherwise it delegates to `bin/tape-six-puppeteer-node.js`.
-- `bin/tape-six-puppeteer-node.js` uses `getOptions()` and `initReporter()` from `tape-six` for CLI parsing and reporter setup. Ensures `tape6-server` is running (with optional `--start-server`), fetches test files from the server (via `/--patterns` or `/--tests`) and importmap, then runs tests via `TestWorker`.
+- `bin/tape6-puppeteer.js` is the CLI entry point. With `--self` it prints its own path (for cross-runtime usage). Otherwise it delegates to `bin/tape6-puppeteer-node.js`.
+- `bin/tape6-puppeteer-node.js` uses `getOptions()` and `initReporter()` from `tape-six` for CLI parsing and reporter setup. Ensures `tape6-server` is running (with optional `--start-server`), fetches test files from the server (via `/--patterns` or `/--tests`) and importmap, then runs tests via `TestWorker`.
 - `TestWorker` (in `src/TestWorker.js`) extends `EventServer` from `tape-six`. It launches headless Chrome via Puppeteer, exposes `__tape6_reporter` and `__tape6_error` globals, and runs each test file in a separate iframe.
 - For `.html` files: loaded as iframe `src` with query parameters (`id`, `test-file-name`, `flags`).
 - For `.js`/`.mjs` files: an HTML document is written into the iframe with an `importmap` and a dynamic module script.
@@ -92,7 +92,7 @@ test('DOM example', t => {
 ## Key conventions
 
 - Do not add dependencies unless absolutely necessary.
-- The `--self` flag prints the path to `tape-six-puppeteer.js` for use in cross-runtime scripts (Bun, Deno).
+- The `--self` flag prints the path to `tape6-puppeteer.js` for use in cross-runtime scripts (Bun, Deno).
 - Wiki documentation lives in the `wiki/` submodule.
 - Environment variables use the `TAPE6_` prefix (shared with `tape-six`).
 - Configuration is read from `tape6.json` or the `"tape6"` section of `package.json` (same as `tape-six`).
