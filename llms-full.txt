@@ -116,7 +116,7 @@ TAPE6_FLAGS=FO tape6-puppeteer --start-server
 - `--start-server`: auto-starts the server before running tests.
 - Without it: the server must already be running. The runner prints instructions if it's unreachable.
 - Server URL: `TAPE6_SERVER_URL` env var, or `HOST`/`PORT`, or default `http://localhost:3000`.
-- Server endpoints used: `GET /--tests` (test file list), `GET /--importmap` (import map).
+- Server endpoints used: `GET /--tests` (test file list), `GET /--patterns?q=...` (filtered file list), `GET /--importmap` (import map).
 
 ## Configuration
 
@@ -164,10 +164,11 @@ The `importmap` section is served by `tape6-server` at `/--importmap` and inject
 1. Parses CLI arguments via `getOptions()` from `tape-six` (`--flags`, `--par`, `--start-server`, `--server-url`, `--info`, positional test patterns).
 2. Initializes the reporter via `initReporter()` from `tape-six`.
 3. Ensures `tape6-server` is reachable (auto-starts if `--start-server`).
-4. Fetches importmap from `GET /--importmap`.
-5. Creates a `TestWorker` instance and executes all test files.
-6. Reports final results and exits with code 0 (success) or 1 (failures).
-7. Kills auto-started server on exit.
+4. Fetches test files from server via `GET /--patterns?q=...` (if patterns given) or `GET /--tests`.
+5. Fetches importmap from `GET /--importmap`.
+6. Creates a `TestWorker` instance and executes all test files.
+7. Reports final results and exits with code 0 (success) or 1 (failures).
+8. Kills auto-started server on exit.
 
 ### TestWorker (`src/TestWorker.js`)
 
@@ -203,7 +204,7 @@ iframe tape-six → ProxyReporter → window.parent.__tape6_reporter(id, event)
 
 ## Dependencies
 
-- **`tape-six`** — the core test library. Imports: `State.js`, `utils/EventServer.js`, `utils/config.js` (`getOptions`, `initFiles`, `initReporter`), `test.js`, `utils/timer.js`.
+- **`tape-six`** — the core test library. Imports: `State.js`, `utils/EventServer.js`, `utils/config.js` (`getOptions`, `initReporter`, `showInfo`), `test.js`, `utils/timer.js`.
 - **`puppeteer`** — headless Chrome automation. Bundled Chromium installed via `postinstall`.
 
 ## Writing tests

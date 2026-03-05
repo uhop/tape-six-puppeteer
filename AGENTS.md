@@ -49,7 +49,7 @@ tape-six-puppeteer/
 ## Architecture
 
 - `bin/tape-six-puppeteer.js` is the CLI entry point. With `--self` it prints its own path (for cross-runtime usage). Otherwise it delegates to `bin/tape-six-puppeteer-node.js`.
-- `bin/tape-six-puppeteer-node.js` uses `getOptions()`, `initFiles()`, and `initReporter()` from `tape-six` for CLI parsing, file resolution, and reporter setup. Ensures `tape6-server` is running (with optional `--start-server`), fetches importmap from the server, and runs tests via `TestWorker`.
+- `bin/tape-six-puppeteer-node.js` uses `getOptions()` and `initReporter()` from `tape-six` for CLI parsing and reporter setup. Ensures `tape6-server` is running (with optional `--start-server`), fetches test files from the server (via `/--patterns` or `/--tests`) and importmap, then runs tests via `TestWorker`.
 - `TestWorker` (in `src/TestWorker.js`) extends `EventServer` from `tape-six`. It launches headless Chrome via Puppeteer, exposes `__tape6_reporter` and `__tape6_error` globals, and runs each test file in a separate iframe.
 - For `.html` files: loaded as iframe `src` with query parameters (`id`, `test-file-name`, `flags`).
 - For `.js`/`.mjs` files: an HTML document is written into the iframe with an `importmap` and a dynamic module script.
@@ -58,7 +58,7 @@ tape-six-puppeteer/
 
 ## Dependencies
 
-- **`tape-six`** — the core test library. Imports: `State.js`, `utils/EventServer.js`, `utils/config.js` (`getOptions`, `initFiles`, `initReporter`), `test.js`, `utils/timer.js`.
+- **`tape-six`** — the core test library. Imports: `State.js`, `utils/EventServer.js`, `utils/config.js` (`getOptions`, `initReporter`, `showInfo`), `test.js`, `utils/timer.js`.
 - **`puppeteer`** — headless Chrome automation. Bundled Chromium is installed via `postinstall`.
 
 ## Server
@@ -68,7 +68,7 @@ tape-six-puppeteer/
 - `--start-server` flag auto-starts the server.
 - Without it, the server must be running. The runner prints instructions if it's unreachable.
 - Server URL: `--server-url URL` (`-u`), `TAPE6_SERVER_URL` env var, `HOST`/`PORT`, or default `http://localhost:3000`.
-- Server endpoints used: `GET /--tests` (test file list), `GET /--importmap` (import map).
+- Server endpoints used: `GET /--tests` (test file list), `GET /--patterns?q=...` (filtered file list), `GET /--importmap` (import map).
 
 ## Writing tests
 
