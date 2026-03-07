@@ -106,6 +106,7 @@ LLM-friendly documentation is available:
 
 The most recent releases:
 
+- 1.0.2 _Updated dependencies. Consolidated workflows._
 - 1.0.1 _Renamed bin files from `tape-six-*` to `tape6-*` pattern._
 - 1.0.0 _The first official release._
 
