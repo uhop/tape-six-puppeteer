@@ -20,5 +20,7 @@ Update all AI-facing files after changes to the CLI, architecture, or project st
 5. Update `AGENTS.md` if critical rules, commands, or architecture quick reference changed.
 6. Update `wiki/Home.md` if the overview needs to reflect new features.
 7. Update `wiki/Utility-‐-tape6‐puppeteer.md` if CLI options or cross-runtime usage changed.
-8. Review `prompts/init.md` for any needed updates to project guidelines.
-9. Track progress with the todo list and provide a summary when done.
+8. Sync `.windsurfrules`, `.cursorrules`, `.clinerules` if `AGENTS.md` critical rules or code style changed:
+   - These three files should be identical copies.
+9. Review `prompts/init.md` for any needed updates to project guidelines.
+10. Track progress with the todo list and provide a summary when done.
