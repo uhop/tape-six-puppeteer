@@ -59,7 +59,7 @@
   ],
   "dependencies": {
     "puppeteer": "^24.38.0",
-    "tape-six": "^1.7.8"
+    "tape-six": "^1.7.10"
   },
   "tape6": {
     "browser": [
