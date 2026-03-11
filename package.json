@@ -10,6 +10,7 @@
   "scripts": {
     "lint": "prettier --check .",
     "lint:fix": "prettier --write .",
+    "browser": "puppeteer browsers install chrome",
     "postinstall": "puppeteer browsers install chrome",
     "test": "node ./bin/tape6-puppeteer.js --start-server --flags FO",
     "test:bun": "bun run ./bin/tape6-puppeteer.js --start-server --flags FO",
