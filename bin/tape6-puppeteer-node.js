@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import process from 'node:process';
+import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawn} from 'node:child_process';
 
@@ -50,17 +51,16 @@ const ensureServer = async (serverUrl, startServer) => {
   }
 
   // start the server
-  const serverBin = fileURLToPath(
-    new URL('../node_modules/tape-six/bin/tape6-server.js', import.meta.url)
-  );
-  const host = new URL(serverUrl).hostname,
-    port = new URL(serverUrl).port || '3000';
-  const child = spawn(process.execPath, [serverBin], {
-    cwd: rootFolder,
-    stdio: ['ignore', 'ignore', 'pipe'],
-    detached: false,
-    env: {...process.env, HOST: host, PORT: port}
-  });
+  const serverBin = join(rootFolder, 'node_modules/tape-six/bin/tape6-server.js'),
+    serverParts = new URL(serverUrl),
+    host = serverParts.hostname,
+    port = serverParts.port || '3000',
+    child = spawn(process.execPath, [serverBin], {
+      cwd: rootFolder,
+      stdio: ['ignore', 'ignore', 'pipe'],
+      detached: false,
+      env: {...process.env, HOST: host, PORT: port}
+    });
 
   let exited = false,
     exitCode = null,
