@@ -44,7 +44,7 @@ tape6-puppeteer --start-server --flags FO
 Runs test files in parallel, each in its own iframe inside headless Chrome.
 
 ```bash
-tape6-puppeteer [--flags FLAGS] [--par N] [--start-server] [--server-url URL] [--info] [tests...]
+tape6-puppeteer [--flags FLAGS] [--par N] [--start-server] [--server-url URL] [--info] [--help] [--version] [tests...]
 ```
 
 ### Options
@@ -55,6 +55,8 @@ tape6-puppeteer [--flags FLAGS] [--par N] [--start-server] [--server-url URL] [-
 - `--server-url URL` (`-u`) — server URL. Overrides `TAPE6_SERVER_URL` and `HOST`/`PORT`.
 - `--self` — prints the absolute path to `tape6-puppeteer.js` and exits. Used in cross-runtime scripts.
 - `--info` — prints runtime, reporter, flags, parallelism, and resolved test files, then exits. Does not require a running server.
+- `--help` (`-h`) — shows help message with all options and flag descriptions, then exits.
+- `--version` (`-v`) — prints version and exits.
 - Positional arguments: test file glob patterns. If none given, resolved from configuration.
 - Options accept `--flags FO` or `--flags=FO`. The `=` form does not support quoting.
 

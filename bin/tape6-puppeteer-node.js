@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
+import {readFileSync} from 'node:fs';
+import path, {join} from 'node:path';
 import process from 'node:process';
-import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawn} from 'node:child_process';
 
-import {getOptions, initReporter, showInfo} from 'tape-six/utils/config.js';
+import {getOptions, initReporter, showInfo, printFlagOptions} from 'tape-six/utils/config.js';
 
 import {getReporter, setReporter} from 'tape-six/test.js';
 import {selectTimer} from 'tape-six/utils/timer.js';
@@ -14,6 +15,11 @@ import TestWorker from '../src/TestWorker.js';
 
 const rootFolder = process.cwd();
 
+const getVersion = () => {
+  const pkgPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../package.json');
+  return JSON.parse(readFileSync(pkgPath, 'utf8')).version;
+};
+
 const showSelf = () => {
   const self = new URL(import.meta.url);
   if (self.protocol === 'file:') {
@@ -21,6 +27,38 @@ const showSelf = () => {
   } else {
     console.log(self);
   }
+  process.exit(0);
+};
+
+const showVersion = () => {
+  console.log('tape6-puppeteer ' + getVersion());
+  process.exit(0);
+};
+
+const showHelp = () => {
+  console.log(
+    'tape6-puppeteer ' + getVersion() + ' \u2014 Puppeteer-based browser test runner for tape-six\n'
+  );
+  console.log('Usage: tape6-puppeteer [options] [patterns...]\n');
+  const options = [
+    ['--flags, -f <flags>', 'Set reporter flags (env: TAPE6_FLAGS)'],
+    ['--par, -p <n>', 'Set parallelism level (env: TAPE6_PAR)'],
+    [
+      '--server-url, -u <url>',
+      'Server URL (env: TAPE6_SERVER_URL, default: http://localhost:3000)'
+    ],
+    ['--start-server', 'Auto-start tape6-server'],
+    ['--info', 'Show configuration info and exit'],
+    ['--self', 'Print the path to this script and exit'],
+    ['--help, -h', 'Show this help message and exit'],
+    ['--version, -v', 'Show version and exit']
+  ];
+  console.log('Options:');
+  const width = options.reduce((max, [flag]) => Math.max(max, flag.length), 0) + 2;
+  for (const [flag, desc] of options) {
+    console.log('  ' + flag.padEnd(width) + desc);
+  }
+  printFlagOptions();
   process.exit(0);
 };
 
@@ -100,10 +138,12 @@ const ensureServer = async (serverUrl, startServer) => {
 
 const main = async () => {
   const options = getOptions({
-    '--self': showSelf,
+    '--self': {fn: showSelf, isValueRequired: false},
     '--start-server': {isValueRequired: false},
     '--info': {isValueRequired: false},
-    '--server-url': {aliases: ['-u'], initialValue: getServerUrl(), isValueRequired: true}
+    '--server-url': {aliases: ['-u'], initialValue: getServerUrl(), isValueRequired: true},
+    '--help': {aliases: ['-h'], fn: showHelp, isValueRequired: false},
+    '--version': {aliases: ['-v'], fn: showVersion, isValueRequired: false}
   });
   options.flags.serverUrl = options.optionFlags['--server-url'];
 
