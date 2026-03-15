@@ -48,7 +48,7 @@ tape-six-puppeteer/
 
 ## Architecture
 
-- `bin/tape6-puppeteer.js` is the CLI entry point. With `--self` it prints its own path (for cross-runtime usage). Otherwise it delegates to `bin/tape6-puppeteer-node.js`.
+- `bin/tape6-puppeteer.js` is the CLI entry point. Handles `--help`, `--version`, and `--self` directly. Otherwise delegates to `bin/tape6-puppeteer-node.js`.
 - `bin/tape6-puppeteer-node.js` uses `getOptions()` and `initReporter()` from `tape-six` for CLI parsing and reporter setup. Ensures `tape6-server` is running (with optional `--start-server`), fetches test files from the server (via `/--patterns` or `/--tests`) and importmap, then runs tests via `TestWorker`.
 - `TestWorker` (in `src/TestWorker.js`) extends `EventServer` from `tape-six`. It launches headless Chrome via Puppeteer, exposes `__tape6_reporter` and `__tape6_error` globals, and runs each test file in a separate iframe.
 - For `.html` files: loaded as iframe `src` with query parameters (`id`, `test-file-name`, `flags`).
@@ -58,7 +58,7 @@ tape-six-puppeteer/
 
 ## Dependencies
 
-- **`tape-six`** — the core test library. Imports: `State.js`, `utils/EventServer.js`, `utils/config.js` (`getOptions`, `initReporter`, `showInfo`), `test.js`, `utils/timer.js`.
+- **`tape-six`** — the core test library. Imports: `State.js`, `utils/EventServer.js`, `utils/config.js` (`getOptions`, `initReporter`, `showInfo`, `printFlagOptions`), `test.js`, `utils/timer.js`.
 - **`puppeteer`** — headless Chrome automation. Bundled Chromium is installed via `postinstall`.
 
 ## Server
