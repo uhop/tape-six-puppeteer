@@ -151,7 +151,9 @@ const main = async () => {
 
   if (options.optionFlags['--info'] === '') {
     showInfo(options, []);
-    process.exit(0);
+    await new Promise(r => process.stdout.write('', r));
+    process.exitCode = 0;
+    return;
   }
 
   const startServer = options.optionFlags['--start-server'] === '';
@@ -225,7 +227,9 @@ const main = async () => {
 
   await worker.cleanup();
 
-  shutdown(hasFailed ? 1 : 0);
+  serverChild?.kill();
+  await new Promise(r => process.stdout.write('', r));
+  process.exitCode = hasFailed ? 1 : 0;
 };
 
 main().catch(error => console.error('ERROR:', error));
