@@ -59,8 +59,8 @@
     "llms-full.txt"
   ],
   "dependencies": {
-    "puppeteer": "^24.39.1",
-    "tape-six": "^1.7.12"
+    "puppeteer": "^24.40.0",
+    "tape-six": "^1.7.13"
   },
   "tape6": {
     "browser": [
