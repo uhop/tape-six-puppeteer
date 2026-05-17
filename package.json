@@ -59,7 +59,7 @@
     "llms-full.txt"
   ],
   "dependencies": {
-    "puppeteer": "^24.40.0",
+    "puppeteer": "^25.0.2",
     "tape-six": "^1.7.13"
   },
   "tape6": {
