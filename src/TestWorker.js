@@ -5,6 +5,11 @@ import EventServer from 'tape-six/utils/EventServer.js';
 
 const supportedExtRe = /\.(?:js|mjs|htm|html)$/i;
 
+// Single source of truth for the `--browser` choice: the CLI validates against
+// this and `#init()` resolves the engine from it. Puppeteer drives only the
+// Chromium family and Firefox — WebKit is Playwright-only (use tape-six-playwright).
+export const supportedBrowsers = ['chromium', 'firefox'];
+
 export default class TestWorker extends EventServer {
   #ready;
   constructor(reporter, numberOfTasks, options) {
@@ -16,7 +21,29 @@ export default class TestWorker extends EventServer {
     this.#ready = this.#init();
   }
   async #init() {
-    this.browser = await puppeteer.launch({headless: true, args: ['--no-sandbox']});
+    const name = this.options.browser || supportedBrowsers[0];
+    if (!supportedBrowsers.includes(name)) {
+      throw new Error(`Unsupported browser "${name}". Supported: ${supportedBrowsers.join(', ')}.`);
+    }
+    // Puppeteer's launch `browser` option names the product: 'chrome' (a
+    // Chromium build — Chrome for Testing) or 'firefox' (driven over WebDriver
+    // BiDi). We keep the user-facing value `chromium` because it names the
+    // engine, matching the Playwright sibling.
+    const product = name === 'chromium' ? 'chrome' : name;
+    // `--no-sandbox` is a Chromium switch; Firefox (WebDriver BiDi) launches without it.
+    const launchOptions = {headless: true, browser: product};
+    if (name === 'chromium') launchOptions.args = ['--no-sandbox'];
+    try {
+      this.browser = await puppeteer.launch(launchOptions);
+    } catch (error) {
+      // postinstall only fetches Chrome, so the usual cause is a missing engine
+      // binary. Point at the install command; the wrapped error keeps Puppeteer's
+      // own diagnostics.
+      throw new Error(
+        `Failed to launch ${name} — run \`npx puppeteer browsers install ${product}\` if it is not installed.\n` +
+          (error && error.message ? error.message : String(error))
+      );
+    }
   }
   makeTask(fileName) {
     const id = String(++this.counter);
@@ -35,9 +62,23 @@ export default class TestWorker extends EventServer {
     this.#ready
       .then(() => this.#runTask(id, fileName))
       .catch(error => {
-        // Browser launch failed (or some pre-context error): no page exists, so
-        // complete the task directly — there is no 'close' event to drive it.
+        // Browser launch / setup failed (e.g. the requested engine isn't
+        // installed): no page exists, so there is no 'close' event to drive
+        // completion. Report the failure — otherwise a run where the browser
+        // never launches reports zero tests and exits 0 (a false pass) — then
+        // complete the task directly.
         console.error('Failed to run test:', fileName, error);
+        try {
+          this.report(id, {
+            name: error && error.message ? error.message : String(error),
+            test: 0,
+            marker: new Error(),
+            operator: 'error',
+            fail: true
+          });
+        } catch (reportError) {
+          if (!isStopTest(reportError)) throw reportError;
+        }
         this.close(id);
       });
     return id;

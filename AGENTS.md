@@ -1,6 +1,6 @@
 # AGENTS.md — tape-six-puppeteer
 
-> `tape-six-puppeteer` is a helper for [tape-six](https://github.com/uhop/tape-six) that runs test files in a headless browser via Puppeteer. Each test file runs in its own iframe inside headless Chrome. The npm package name is `tape-six-puppeteer` and the CLI command is `tape6-puppeteer`.
+> `tape-six-puppeteer` is a helper for [tape-six](https://github.com/uhop/tape-six) that runs test files in a headless browser via Puppeteer. Each test file runs in its own iframe in a headless engine — Chromium (default) or Firefox, selectable via `--browser`. The npm package name is `tape-six-puppeteer` and the CLI command is `tape6-puppeteer`.
 
 ## Setup
 
@@ -12,14 +12,16 @@ cd tape-six-puppeteer
 npm install
 ```
 
-There is no build step. `npm install` runs `postinstall` which installs Puppeteer's bundled Chromium.
+There is no build step. `npm install` runs `postinstall` which installs Puppeteer's bundled Chromium. Firefox is not installed by default — run `npm run browser:all` (or `npx puppeteer browsers install firefox`) to add it.
 
 ## Commands
 
 - **Install:** `npm install`
 - **Test (Node):** `npm test` (runs `tape6-puppeteer --start-server --flags FO`)
+- **Test (Firefox):** `npm run test:firefox` — runs the suite on Firefox (`--browser firefox`)
 - **Test (Bun):** `npm run test:bun`
 - **Test (Deno):** `npm run test:deno`
+- **Install all engines:** `npm run browser:all` (Chromium + Firefox)
 - **Lint:** `npm run lint` (Prettier check)
 - **Lint fix:** `npm run lint:fix` (Prettier write)
 
@@ -50,7 +52,8 @@ tape-six-puppeteer/
 
 - `bin/tape6-puppeteer.js` is the CLI entry point. Handles `--help`, `--version`, and `--self` directly. Otherwise delegates to `bin/tape6-puppeteer-node.js`.
 - `bin/tape6-puppeteer-node.js` uses `getOptions()` and `initReporter()` from `tape-six` for CLI parsing and reporter setup. Ensures `tape6-server` is running (with optional `--start-server`), fetches test files from the server (via `/--patterns` or `/--tests`) and importmap, then runs tests via `TestWorker`.
-- `TestWorker` (in `src/TestWorker.js`) extends `EventServer` from `tape-six`. It launches one headless Chrome browser; each test file runs in its own `BrowserContext` → `Page` (full origin/storage isolation), with `__tape6_reporter` and `__tape6_error` exposed as page functions and the test itself in an iframe inside that page.
+- `TestWorker` (in `src/TestWorker.js`) extends `EventServer` from `tape-six`. It launches one headless browser of the selected engine via Puppeteer; each test file runs in its own `BrowserContext` → `Page` (full origin/storage isolation), with `__tape6_reporter` and `__tape6_error` exposed as page functions and the test itself in an iframe inside that page.
+- **Browser selection:** `--browser <chromium|firefox>` / `-b` (env `TAPE6_BROWSER`, default `chromium`; precedence CLI > env > default) picks the engine. `TestWorker.#init()` dynamic-picks it via `puppeteer.launch({browser})`, mapping the user-facing `chromium` to Puppeteer's launch product `chrome` (Chrome for Testing); Firefox is driven over WebDriver BiDi. `--no-sandbox` is applied to Chromium only (Firefox launches without it). `supportedBrowsers` (exported from `src/TestWorker.js`) is the single source of truth the CLI validates against. Only Chrome is fetched by `postinstall`; a missing engine fails the run with an `npx puppeteer browsers install <product>` hint (a launch failure reports a failure, so the run exits non-zero rather than a false pass). Puppeteer drives only Chromium and Firefox — for WebKit use the sibling runner [tape-six-playwright](https://github.com/uhop/tape-six-playwright).
 - For `.html` files: loaded as iframe `src` with query parameters (`id`, `test-file-name`, `flags`).
 - For `.js`/`.mjs` files: an HTML document is written into the iframe with an `importmap` and a dynamic module script.
 - Unsupported extensions (`.cjs`, `.ts`, `.cts`, `.mts`) are skipped with a warning.
@@ -60,7 +63,7 @@ tape-six-puppeteer/
 ## Dependencies
 
 - **`tape-six`** — the core test library. Imports: `State.js`, `utils/EventServer.js`, `utils/config.js` (`getOptions`, `initReporter`, `showInfo`, `printFlagOptions`), `test.js`, `utils/timer.js`.
-- **`puppeteer`** — headless Chrome automation. Bundled Chromium is installed via `postinstall`.
+- **`puppeteer`** — headless browser automation (Chromium and Firefox). Bundled Chromium is installed via `postinstall`; Firefox is fetched on demand (`npm run browser:all`).
 
 ## Server
 

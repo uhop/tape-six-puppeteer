@@ -6,14 +6,14 @@
 `tape-six-puppeteer` is a helper for [tape-six](https://www.npmjs.com/package/tape-six)
 to run tests in a headless browser via Puppeteer. Each test file runs in its own
 browser context — a separate page and iframe with isolated cookies and storage —
-inside headless Chrome.
+in a headless engine. Chromium runs by default; Firefox is available via `--browser`.
 
 ## Why?
 
-The standard `tape6` runner uses worker threads. `tape6-puppeteer` launches headless
-Chrome and runs each test file in its own browser context, giving tests access to real
-DOM, browser APIs, and the full web platform. Tests can be `.js`/`.mjs` modules or
-`.html` files.
+The standard `tape6` runner uses worker threads. `tape6-puppeteer` launches a headless
+browser (Chromium or Firefox) and runs each test file in its own browser context, giving
+tests access to real DOM, browser APIs, and the full web platform. Tests can be `.js`/`.mjs`
+modules or `.html` files.
 
 ## Install
 
@@ -21,7 +21,9 @@ DOM, browser APIs, and the full web platform. Tests can be `.js`/`.mjs` modules 
 npm i -D tape-six-puppeteer
 ```
 
-Puppeteer's bundled Chromium is installed automatically via `postinstall`.
+Puppeteer's bundled Chromium is installed automatically via `postinstall`. Firefox is
+optional — add it with `npm run browser:all` (or `npx puppeteer browsers install firefox`)
+when you want to run on that engine.
 
 ## Quick start
 
@@ -71,6 +73,39 @@ npm test
 - **Auto-start:** use `--start-server` to launch it automatically.
 - **Manual:** run `npx tape6-server` in a separate terminal, then run tests without `--start-server`.
 - **Custom URL:** use `--server-url URL` (`-u`), or set `TAPE6_SERVER_URL` or `HOST`/`PORT` environment variables.
+
+## Choosing a browser engine
+
+Tests run on Chromium by default. Select another engine with `--browser` (`-b`) or the
+`TAPE6_BROWSER` environment variable — `chromium` or `firefox` (CLI overrides env, which
+overrides the default):
+
+```bash
+tape6-puppeteer --start-server --browser firefox --flags FO
+TAPE6_BROWSER=firefox tape6-puppeteer --start-server --flags FO
+```
+
+Only Chromium is installed by `postinstall`. Install Firefox on demand (a run that
+requests a missing engine fails with an install hint):
+
+```bash
+npx puppeteer browsers install firefox   # or: npm run browser:all
+```
+
+Run several engines with one script each:
+
+```json
+{
+  "scripts": {
+    "test": "tape6-puppeteer --start-server --flags FO",
+    "test:firefox": "tape6-puppeteer --start-server --browser firefox --flags FO"
+  }
+}
+```
+
+> For WebKit support, use the sibling runner
+> [tape-six-playwright](https://github.com/uhop/tape-six-playwright); Puppeteer drives only
+> Chromium and Firefox.
 
 ## Cross-runtime usage
 

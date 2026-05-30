@@ -24,6 +24,10 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
       '--server-url, -u <url>',
       'Server URL (env: TAPE6_SERVER_URL, default: http://localhost:3000)'
     ],
+    [
+      '--browser, -b <name>',
+      'Browser engine: chromium|firefox (env: TAPE6_BROWSER, default: chromium)'
+    ],
     ['--start-server', 'Auto-start tape6-server'],
     ['--info', 'Show configuration info and exit'],
     ['--self', 'Print the path to this script and exit'],

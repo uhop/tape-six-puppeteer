@@ -1,9 +1,10 @@
 # tape-six-puppeteer
 
-> A helper for [tape-six](https://github.com/uhop/tape-six) that runs test files in a headless browser via Puppeteer. Each test file runs in its own iframe inside headless Chrome. The npm package name is `tape-six-puppeteer` and the CLI command is `tape6-puppeteer`.
+> A helper for [tape-six](https://github.com/uhop/tape-six) that runs test files in a headless browser via Puppeteer. Each test file runs in its own iframe in Chromium or Firefox (default Chromium, selectable via `--browser`). The npm package name is `tape-six-puppeteer` and the CLI command is `tape6-puppeteer`.
 
-- Real browser environment: tests run in headless Chrome with full DOM and browser API access
+- Real browser environment: tests run in a headless engine (Chromium or Firefox) with full DOM and browser API access
 - Per-context isolation: each test file runs in its own browser context (isolated cookies/storage), in an iframe inside that context's page
+- Multiple engines: `--browser` / `TAPE6_BROWSER` selects `chromium` (default) or `firefox`
 - Cross-runtime: Node, Deno, and Bun with the same test files
 - Drop-in companion for `tape6` (worker-thread runner) and `tape6-proc` (subprocess runner)
 - Same configuration format as `tape-six`
@@ -16,7 +17,7 @@
 npm i -D tape-six-puppeteer
 ```
 
-Puppeteer's bundled Chromium is installed automatically via `postinstall`.
+Puppeteer's bundled Chromium is installed automatically via `postinstall`. Firefox is optional — add it with `npm run browser:all` (or `npx puppeteer browsers install firefox`).
 
 ## Quick start
 
@@ -41,16 +42,17 @@ tape6-puppeteer --start-server --flags FO
 
 ## CLI: tape6-puppeteer
 
-Runs test files in parallel, each in its own iframe inside headless Chrome.
+Runs test files in parallel, each in its own browser context inside a headless engine (Chromium by default; Firefox via `--browser`).
 
 ```bash
-tape6-puppeteer [--flags FLAGS] [--par N] [--start-server] [--server-url URL] [--info] [--help] [--version] [tests...]
+tape6-puppeteer [--flags FLAGS] [--par N] [--browser NAME] [--start-server] [--server-url URL] [--info] [--help] [--version] [tests...]
 ```
 
 ### Options
 
 - `--flags FLAGS` (`-f`) — output control flags (see Supported flags below).
 - `--par N` (`-p`) — number of parallel iframes. Default: all CPU cores (via `os.availableParallelism()` or `navigator.hardwareConcurrency`).
+- `--browser NAME` (`-b`) — browser engine: `chromium` (default) or `firefox`. Overrides `TAPE6_BROWSER`. Only Chrome is installed by `postinstall`; a missing engine fails the run with an `npx puppeteer browsers install <product>` hint.
 - `--start-server` — auto-start `tape6-server` if not already running.
 - `--server-url URL` (`-u`) — server URL. Overrides `TAPE6_SERVER_URL` and `HOST`/`PORT`.
 - `--self` — prints the absolute path to `tape6-puppeteer.js` and exits. Used in cross-runtime scripts.
@@ -71,6 +73,10 @@ tape6-puppeteer --start-server tests/test-dom.js
 
 # Limit parallelism
 tape6-puppeteer --start-server --par 2 --flags FO
+
+# Run on Firefox
+tape6-puppeteer --start-server --browser firefox --flags FO
+TAPE6_BROWSER=firefox tape6-puppeteer --start-server --flags FO
 
 # Use with already-running server
 tape6-puppeteer --flags FO
@@ -149,6 +155,7 @@ The `importmap` section is served by `tape6-server` at `/--importmap` and inject
 - `TAPE6_JSONL` — force JSONL reporter (any non-empty value).
 - `TAPE6_MIN` — force minimal reporter (any non-empty value).
 - `TAPE6_SERVER_URL` — full server URL override (e.g. `http://localhost:4000`). Overridden by `--server-url`.
+- `TAPE6_BROWSER` — browser engine: `chromium` (default) or `firefox`. Overridden by `--browser` (precedence: CLI > env > default).
 - `HOST` — server hostname (default: `localhost`).
 - `PORT` — server port (default: `3000`).
 - `TAPE6_GRACE_TIMEOUT` — control channel: ms a worker gets to drain (run cleanup hooks) after a terminate, before its browser context is force-closed (default: `5000`).
@@ -178,12 +185,20 @@ The `importmap` section is served by `tape6-server` at `/--importmap` and inject
 
 Extends `EventServer` from `tape-six`. Manages the Puppeteer browser and per-task contexts:
 
-- **`constructor(reporter, numberOfTasks, options)`** — launches one headless Chrome browser.
-- **`makeTask(fileName)`** — creates a fresh `BrowserContext` → `Page` for the test (full origin/storage isolation), exposes `__tape6_reporter` and `__tape6_error` on that page, navigates it to the server origin, and runs the test file in an iframe inside it. Returns a task ID.
+- **`constructor(reporter, numberOfTasks, options)`** — launches one headless browser of the selected engine (`options.browser`, default `chromium`) via `puppeteer.launch({browser})`; the user-facing `chromium` maps to Puppeteer's `chrome` product, Firefox runs over WebDriver BiDi, and `--no-sandbox` is applied to Chromium only.
+- **`makeTask(fileName)`** — creates a fresh `BrowserContext` → `Page` for the test (full origin/storage isolation), exposes `__tape6_reporter` and `__tape6_error` on that page, navigates it to the server origin, and runs the test file in an iframe inside it. Returns a task ID. If the browser failed to launch (e.g. the engine isn't installed), it reports a failure so the run exits non-zero rather than reporting a false pass.
 - **`destroyTask(id, reason)`** — the control plane. `done` closes the task's context; an abort reason (`failOnce` / `timeout`) drains the running test (posts `tape6-terminate` into the iframe), then force-kills it by closing the context after `graceTimeout`.
 - **`cleanup()`** — closes the browser.
 
 Task completion is driven by each page's `close` event, not by a reported event, so a force-killed page (which emits nothing) still completes `close(id)` exactly once.
+
+### Browser engines
+
+The engine is chosen with `--browser <chromium|firefox>` / `-b`, or `TAPE6_BROWSER` (precedence: CLI > env > default `chromium`). The CLI validates the value against `supportedBrowsers` (exported from `src/TestWorker.js` — the single source of truth) and exits with an error on an unknown engine. `TestWorker.#init()` then launches it via `puppeteer.launch({browser})`, mapping the user-facing `chromium` to Puppeteer's launch product `chrome` (a Chromium build, Chrome for Testing) and driving Firefox over WebDriver BiDi. `--no-sandbox` is applied to Chromium only (Firefox launches without it). The per-context model, iframe injection, data plane, and control channel are identical across both engines — only the launched browser differs.
+
+`postinstall` fetches only Chrome; Firefox is installed on demand (`npm run browser:all`, or `npx puppeteer browsers install firefox`). Requesting an engine that isn't installed surfaces a clear `npx puppeteer browsers install <product>` hint and fails the run (a launch failure reports a failure, so the run exits non-zero rather than a false pass).
+
+The sibling package `tape-six-playwright` exposes the same `--browser` / `TAPE6_BROWSER` contract, plus `webkit` (Puppeteer drives only Chromium and Firefox).
 
 ### Iframe lifecycle
 
@@ -220,7 +235,7 @@ This is the driver-backed browser's answer to "no in-page force-kill": a hung, n
 ## Dependencies
 
 - **`tape-six`** — the core test library. Imports: `State.js`, `utils/EventServer.js`, `utils/config.js` (`getOptions`, `initReporter`, `showInfo`), `test.js`, `utils/timer.js`.
-- **`puppeteer`** — headless Chrome automation. Bundled Chromium installed via `postinstall`.
+- **`puppeteer`** — headless browser automation (Chromium and Firefox). Bundled Chromium installed via `postinstall`; Firefox fetched on demand (`npm run browser:all`).
 
 ## Writing tests
 

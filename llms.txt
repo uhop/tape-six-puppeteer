@@ -1,6 +1,6 @@
 # tape-six-puppeteer
 
-> Helper for [tape-six](https://github.com/uhop/tape-six) that runs test files in a headless browser via Puppeteer. Each test file runs in its own iframe inside headless Chrome. Works with Node, Deno, and Bun.
+> Helper for [tape-six](https://github.com/uhop/tape-six) that runs test files in a headless browser via Puppeteer. Each test file runs in its own iframe in Chromium or Firefox (default Chromium, selectable via `--browser`). Works with Node, Deno, and Bun.
 
 ## Install
 
@@ -46,21 +46,23 @@ test('DOM test', t => {
 
 ## Why use tape-six-puppeteer?
 
-- **Real browser environment** — tests run in headless Chrome with full DOM and browser API access.
+- **Real browser environment** — tests run in a headless engine (Chromium or Firefox) with full DOM and browser API access.
 - **Per-context isolation** — each test file runs in its own browser context (isolated cookies/storage), in an iframe inside that context's page.
+- **Multiple engines** — pick `chromium` (default) or `firefox` per run via `--browser` / `TAPE6_BROWSER`.
 - **Cross-runtime** — works with Node, Deno, and Bun using the same test files.
 - **Drop-in companion** — uses the same configuration and test format as `tape6` and `tape6-proc`.
 
 ## CLI: tape6-puppeteer
 
 ```bash
-tape6-puppeteer [--flags FLAGS] [--par N] [--start-server] [--server-url URL] [--info] [--help] [--version] [tests...]
+tape6-puppeteer [--flags FLAGS] [--par N] [--browser NAME] [--start-server] [--server-url URL] [--info] [--help] [--version] [tests...]
 ```
 
 ### Options
 
 - `--flags FLAGS` (`-f`) — output control flags (same as tape6: F=failures only, T=time, B=banner, D=data, O=fail once, N=assert number, M=monochrome, C=don't capture console, H=hide streams). Can be specified multiple times.
 - `--par N` (`-p`) — number of parallel iframes (default: all CPU cores).
+- `--browser NAME` (`-b`) — browser engine: `chromium` (default) or `firefox` (env: `TAPE6_BROWSER`).
 - `--start-server` — auto-start `tape6-server` if not already running.
 - `--server-url URL` (`-u`) — server URL (overrides `TAPE6_SERVER_URL`).
 - `--self` — prints the path to `tape6-puppeteer.js` (for cross-runtime scripts).
@@ -115,6 +117,7 @@ Same as `tape-six`. Reads from `tape6.json` or the `"tape6"` section of `package
 - `TAPE6_JSONL` — force JSONL reporter.
 - `TAPE6_MIN` — force minimal reporter.
 - `TAPE6_SERVER_URL` — full server URL override.
+- `TAPE6_BROWSER` — browser engine: chromium|firefox (default chromium; overridden by `--browser`).
 - `TAPE6_GRACE_TIMEOUT` — control channel: drain grace (ms) before a worker's context is force-closed (default 5000).
 - `TAPE6_WORKER_TIMEOUT` — control channel: per-worker deadline (ms); 0 disables (default).
 
