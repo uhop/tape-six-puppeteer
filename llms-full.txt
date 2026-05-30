@@ -3,7 +3,7 @@
 > A helper for [tape-six](https://github.com/uhop/tape-six) that runs test files in a headless browser via Puppeteer. Each test file runs in its own iframe inside headless Chrome. The npm package name is `tape-six-puppeteer` and the CLI command is `tape6-puppeteer`.
 
 - Real browser environment: tests run in headless Chrome with full DOM and browser API access
-- Iframe isolation: each test file runs in its own iframe
+- Per-context isolation: each test file runs in its own browser context (isolated cookies/storage), in an iframe inside that context's page
 - Cross-runtime: Node, Deno, and Bun with the same test files
 - Drop-in companion for `tape6` (worker-thread runner) and `tape6-proc` (subprocess runner)
 - Same configuration format as `tape-six`
@@ -151,6 +151,8 @@ The `importmap` section is served by `tape6-server` at `/--importmap` and inject
 - `TAPE6_SERVER_URL` — full server URL override (e.g. `http://localhost:4000`). Overridden by `--server-url`.
 - `HOST` — server hostname (default: `localhost`).
 - `PORT` — server port (default: `3000`).
+- `TAPE6_GRACE_TIMEOUT` — control channel: ms a worker gets to drain (run cleanup hooks) after a terminate, before its browser context is force-closed (default: `5000`).
+- `TAPE6_WORKER_TIMEOUT` — control channel: per-worker wall-clock deadline in ms; on expiry the worker is drained then force-killed (default: `0`, disabled). Both are honored by a `tape-six` that ships the hub control plane.
 
 ## Architecture
 
@@ -174,12 +176,14 @@ The `importmap` section is served by `tape6-server` at `/--importmap` and inject
 
 ### TestWorker (`src/TestWorker.js`)
 
-Extends `EventServer` from `tape-six`. Manages Puppeteer browser and iframe execution:
+Extends `EventServer` from `tape-six`. Manages the Puppeteer browser and per-task contexts:
 
-- **`constructor(reporter, numberOfTasks, options)`** — launches headless Chrome, creates a page, exposes `__tape6_reporter` and `__tape6_error` as page globals.
-- **`makeTask(fileName)`** — creates an iframe for the test file. Returns a task ID.
-- **`destroyTask(id)`** — removes the iframe from the page.
+- **`constructor(reporter, numberOfTasks, options)`** — launches one headless Chrome browser.
+- **`makeTask(fileName)`** — creates a fresh `BrowserContext` → `Page` for the test (full origin/storage isolation), exposes `__tape6_reporter` and `__tape6_error` on that page, navigates it to the server origin, and runs the test file in an iframe inside it. Returns a task ID.
+- **`destroyTask(id, reason)`** — the control plane. `done` closes the task's context; an abort reason (`failOnce` / `timeout`) drains the running test (posts `tape6-terminate` into the iframe), then force-kills it by closing the context after `graceTimeout`.
 - **`cleanup()`** — closes the browser.
+
+Task completion is driven by each page's `close` event, not by a reported event, so a force-killed page (which emits nothing) still completes `close(id)` exactly once.
 
 ### Iframe lifecycle
 
@@ -203,6 +207,15 @@ iframe tape-six → ProxyReporter → window.parent.__tape6_reporter(id, event)
 ### Unsupported files
 
 `.cjs`, `.ts`, `.cts`, `.mts` files are skipped with a warning.
+
+### Worker control channel
+
+`TestWorker` implements the provider side of tape-six's worker control channel (full spec in the tape-six repo's `dev-docs/worker-control-channel.md`). The runner stops a worker through `destroyTask(id, reason)`:
+
+- `done` — the test finished; close its context now.
+- `failOnce` / `timeout` (abort) — drain cooperatively first: post `{type: 'tape6-terminate'}` into the test's iframe so `tape-six` arms `stopTest` and fires the abort signal, unwinding the test at its next assertion and running its cleanup hooks. If the test doesn't exit within `graceTimeout` (`TAPE6_GRACE_TIMEOUT`), force-kill it by closing the `BrowserContext` — the real kill an in-page iframe can't perform on itself.
+
+This is the driver-backed browser's answer to "no in-page force-kill": a hung, non-cooperative test that ignores the drain is still stopped, because the Node-side driver closes its context. The cooperative-drain half depends on a `tape-six` that ships the hub control plane (the in-iframe `tape6-terminate` listener); the force-kill backstop works with any version.
 
 ## Dependencies
 

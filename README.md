@@ -5,13 +5,15 @@
 
 `tape-six-puppeteer` is a helper for [tape-six](https://www.npmjs.com/package/tape-six)
 to run tests in a headless browser via Puppeteer. Each test file runs in its own
-iframe inside headless Chrome, providing full browser isolation.
+browser context — a separate page and iframe with isolated cookies and storage —
+inside headless Chrome.
 
 ## Why?
 
 The standard `tape6` runner uses worker threads. `tape6-puppeteer` launches headless
-Chrome and runs each test file in a separate iframe, giving tests access to real DOM,
-browser APIs, and the full web platform. Tests can be `.js`/`.mjs` modules or `.html` files.
+Chrome and runs each test file in its own browser context, giving tests access to real
+DOM, browser APIs, and the full web platform. Tests can be `.js`/`.mjs` modules or
+`.html` files.
 
 ## Install
 

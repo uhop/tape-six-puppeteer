@@ -50,11 +50,12 @@ tape-six-puppeteer/
 
 - `bin/tape6-puppeteer.js` is the CLI entry point. Handles `--help`, `--version`, and `--self` directly. Otherwise delegates to `bin/tape6-puppeteer-node.js`.
 - `bin/tape6-puppeteer-node.js` uses `getOptions()` and `initReporter()` from `tape-six` for CLI parsing and reporter setup. Ensures `tape6-server` is running (with optional `--start-server`), fetches test files from the server (via `/--patterns` or `/--tests`) and importmap, then runs tests via `TestWorker`.
-- `TestWorker` (in `src/TestWorker.js`) extends `EventServer` from `tape-six`. It launches headless Chrome via Puppeteer, exposes `__tape6_reporter` and `__tape6_error` globals, and runs each test file in a separate iframe.
+- `TestWorker` (in `src/TestWorker.js`) extends `EventServer` from `tape-six`. It launches one headless Chrome browser; each test file runs in its own `BrowserContext` → `Page` (full origin/storage isolation), with `__tape6_reporter` and `__tape6_error` exposed as page functions and the test itself in an iframe inside that page.
 - For `.html` files: loaded as iframe `src` with query parameters (`id`, `test-file-name`, `flags`).
 - For `.js`/`.mjs` files: an HTML document is written into the iframe with an `importmap` and a dynamic module script.
 - Unsupported extensions (`.cjs`, `.ts`, `.cts`, `.mts`) are skipped with a warning.
 - Each iframe's `tape-six` auto-detects `window.parent.__tape6_reporter` and uses a `ProxyReporter` to send events back.
+- **Worker control channel** (`destroyTask(id, reason)`): the provider side of tape-six's control plane (full spec: `dev-docs/worker-control-channel.md` in the tape-six repo). `done` closes the task's context. An abort reason (`failOnce` / `timeout`) first cooperatively drains the running test — posting `{type: 'tape6-terminate'}` into its iframe so it unwinds at the next assertion and runs cleanup hooks — then, after `graceTimeout` (`TAPE6_GRACE_TIMEOUT`, default 5000), force-kills it by closing the context (the Node-side kill in-page JS can't perform on itself). Per-task completion is driven by the page `close` event, never by a reported event, so a force-killed page — which emits nothing — still completes `close(id)` exactly once. The cooperative-drain half needs a `tape-six` that ships the hub control plane; the force-kill backstop is driver-side and version-independent.
 
 ## Dependencies
 
