@@ -159,7 +159,7 @@ The `importmap` section is served by `tape6-server` at `/--importmap` and inject
 - `HOST` — server hostname (default: `localhost`).
 - `PORT` — server port (default: `3000`).
 - `TAPE6_GRACE_TIMEOUT` — control channel: ms a worker gets to drain (run cleanup hooks) after a terminate, before its browser context is force-closed (default: `5000`).
-- `TAPE6_WORKER_TIMEOUT` — control channel: per-worker wall-clock deadline in ms; on expiry the worker is drained then force-killed (default: `0`, disabled). Both are honored by a `tape-six` that ships the hub control plane.
+- `TAPE6_WORKER_TIMEOUT` — control channel: per-worker wall-clock deadline in ms; on expiry the worker is drained then force-killed (default: `0`, disabled). Both are honored by tape-six's hub control plane (provided by the `^1.10` dependency).
 
 ## Architecture
 
@@ -230,7 +230,7 @@ iframe tape-six → ProxyReporter → window.parent.__tape6_reporter(id, event)
 - `done` — the test finished; close its context now.
 - `failOnce` / `timeout` (abort) — drain cooperatively first: post `{type: 'tape6-terminate'}` into the test's iframe so `tape-six` arms `stopTest` and fires the abort signal, unwinding the test at its next assertion and running its cleanup hooks. If the test doesn't exit within `graceTimeout` (`TAPE6_GRACE_TIMEOUT`), force-kill it by closing the `BrowserContext` — the real kill an in-page iframe can't perform on itself.
 
-This is the driver-backed browser's answer to "no in-page force-kill": a hung, non-cooperative test that ignores the drain is still stopped, because the Node-side driver closes its context. The cooperative-drain half depends on a `tape-six` that ships the hub control plane (the in-iframe `tape6-terminate` listener); the force-kill backstop works with any version.
+This is the driver-backed browser's answer to "no in-page force-kill": a hung, non-cooperative test that ignores the drain is still stopped, because the Node-side driver closes its context. The cooperative drain relies on the in-iframe `tape6-terminate` listener in tape-six's hub control plane, provided by the `^1.10` dependency floor; the force-kill backstop works with any version.
 
 ## Dependencies
 

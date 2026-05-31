@@ -1,6 +1,6 @@
 {
   "name": "tape-six-puppeteer",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "Puppeteer-based browser test runner for tape-six. Runs each test file in its own iframe inside headless Chrome. Works with Node, Deno, and Bun.",
   "type": "module",
   "bin": {
@@ -63,8 +63,8 @@
     "llms-full.txt"
   ],
   "dependencies": {
-    "puppeteer": "^24.40.0",
-    "tape-six": "^1.7.13"
+    "puppeteer": "^25.1.0",
+    "tape-six": "^1.10.0"
   },
   "tape6": {
     "browser": [
@@ -81,6 +81,6 @@
     }
   },
   "devDependencies": {
-    "prettier": "^3.8.1"
+    "prettier": "^3.8.3"
   }
 }

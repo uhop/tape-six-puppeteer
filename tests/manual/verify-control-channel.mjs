@@ -1,22 +1,21 @@
 // Manual integration check for the worker control channel — provider side.
 //
-// Scope vs. the installed dependency: the tape-six **hub** control plane
-// (EventServer abort triggers, the iframe child's `tape6-terminate` listener,
-// graceTimeout/workerTimeout wiring) ships in a tape-six version newer than the
-// 1.7.13 this package currently depends on. So:
-//   - The force-kill BACKSTOP (driver closes the context after graceTimeout) is
-//     pure driver-side and verifiable against any tape-six — that's this test.
-//   - The cooperative DRAIN (postMessage tape6-terminate -> reporter.terminate()
-//     in the iframe) needs the newer tape-six loaded inside the iframe; it can't
-//     be exercised end-to-end until the dep is bumped. The provider already
-//     sends the postMessage, so it lights up automatically then.
+// Both cases drive destroyTask(id, 'failOnce') directly — exactly what the
+// EventServer base does on a bail / failOnce / worker-deadline — against a
+// running test, then assert HOW the task completes:
 //
-// What this proves, version-independently, is the property a naive provider gets
-// wrong: a force-killed page emits NO completion event, so close(id) must be
-// driven by the page 'close' event, not by a reported 'end'. We drive
-// destroyTask(id, 'failOnce') directly (what the new base will do on bail) on a
-// test that hangs ignoring all signals, and assert done() still fires, after
-// roughly graceTimeout (the kill), not before.
+//   - hang.mjs (UNCOOPERATIVE): ignores the abort, so the cooperative drain is
+//     a no-op and only the force-kill backstop (driver closes the context after
+//     graceTimeout) ends it -> completes at ~graceTimeout.
+//   - cooperative.mjs (COOPERATIVE): asserts on a short interval, so the armed
+//     StopTest unwinds it at the next assertion -> completes WELL before
+//     graceTimeout, no force-kill needed.
+//
+// Both prove the property a naive provider gets wrong: a force-killed page emits
+// NO completion event, so close(id) must be driven by the page 'close' event,
+// not by a reported 'end'. The cooperative case additionally exercises the
+// in-iframe `tape6-terminate` listener, which needs tape-six >= 1.10; the
+// force-kill backstop is version-independent.
 //
 // Run: `node tests/manual/verify-control-channel.mjs`
 import process from 'node:process';
@@ -68,66 +67,81 @@ const makeReporter = () => ({
   }
 });
 
+// Launch a worker for one fixture, wait until the test has actually started,
+// drive a failOnce abort, and measure how long until done() fires. A fresh
+// worker per case keeps the task-id counter deterministic (single file -> '1').
+const runCase = async file => {
+  const reporter = makeReporter();
+  const worker = new TestWorker(reporter, 1, {serverUrl, importmap});
+  // The base honors graceTimeout from options; set it directly here so the
+  // backstop has a deterministic, observable delay independent of TAPE6_*.
+  worker.graceTimeout = GRACE;
+
+  const donePromise = new Promise(resolve => {
+    worker.done = () => resolve();
+  });
+
+  worker.execute([file]);
+  const id = '1';
+
+  // Wait until the test's first assertion ('started') arrived, so the abort
+  // lands on a running test, not during setup.
+  let started = false;
+  for (let i = 0; i < 80; ++i) {
+    if (reporter.events.some(e => e.name && String(e.name).includes('started'))) {
+      started = true;
+      break;
+    }
+    await wait(250);
+  }
+
+  const abortAt = Date.now();
+  worker.destroyTask(id, 'failOnce');
+
+  const guard = wait(GRACE + 15000).then(() => 'TIMEOUT');
+  const outcome = await Promise.race([donePromise.then(() => 'DONE'), guard]);
+  const elapsed = Date.now() - abortAt;
+
+  await worker.cleanup().catch(() => {});
+  return {started, completed: outcome === 'DONE', elapsed};
+};
+
 const main = async () => {
   const server = await startServer();
   const results = [];
   let ok = true;
-  let worker;
   try {
-    const reporter = makeReporter();
-    worker = new TestWorker(reporter, 1, {serverUrl, importmap});
-    // The 1.7.13 base doesn't set graceTimeout (no control plane); set it
-    // explicitly so the backstop has a deterministic, observable delay.
-    worker.graceTimeout = GRACE;
-
-    const donePromise = new Promise(resolve => {
-      worker.done = () => resolve();
-    });
-
-    // Single file -> deterministic task id '1' (counter: 0 -> ++ -> 1).
-    worker.execute(['tests/manual/hang.mjs']);
-    const id = '1';
-
-    // Wait until the hung test has actually started (its first assert arrived),
-    // so the abort lands on a running test, not during setup.
-    let started = false;
-    for (let i = 0; i < 80; ++i) {
-      if (reporter.events.some(e => e.name && String(e.name).includes('started'))) {
-        started = true;
-        break;
-      }
-      await wait(250);
-    }
-
-    const abortAt = Date.now();
-    // Simulate the new base's bail trigger. Cooperative drain is a no-op in the
-    // 1.7.13 iframe, so this must fall through to the force-kill backstop.
-    worker.destroyTask(id, 'failOnce');
-
-    const guard = wait(GRACE + 15000).then(() => 'TIMEOUT');
-    const outcome = await Promise.race([donePromise.then(() => 'DONE'), guard]);
-    const elapsed = Date.now() - abortAt;
-
-    const completed = outcome === 'DONE';
-    const killedNotBeforeGrace = elapsed >= GRACE - 300; // waited for the kill
-    const pass = started && completed && killedNotBeforeGrace;
-    ok = pass;
+    // Force-kill backstop: an uncooperative test ends only at ~graceTimeout.
+    const hang = await runCase('tests/manual/hang.mjs');
+    const hangPass = hang.started && hang.completed && hang.elapsed >= GRACE - 200;
+    ok = ok && hangPass;
     results.push(
-      `force-kill backstop: ${pass ? 'PASS' : 'FAIL'} ` +
-        `(started=${started}; completed=${completed}; killedAfter=${elapsed}ms; grace=${GRACE}ms)`
+      `force-kill backstop: ${hangPass ? 'PASS' : 'FAIL'} ` +
+        `(started=${hang.started}; completed=${hang.completed}; ` +
+        `killedAfter=${hang.elapsed}ms; grace=${GRACE}ms)`
+    );
+
+    // Cooperative drain: a test that keeps asserting unwinds at the next
+    // assertion, well before the kill would fire.
+    const coop = await runCase('tests/manual/cooperative.mjs');
+    const coopPass = coop.started && coop.completed && coop.elapsed <= GRACE - 600;
+    ok = ok && coopPass;
+    results.push(
+      `cooperative drain:   ${coopPass ? 'PASS' : 'FAIL'} ` +
+        `(started=${coop.started}; completed=${coop.completed}; ` +
+        `drainedAfter=${coop.elapsed}ms; grace=${GRACE}ms)`
     );
   } catch (error) {
     ok = false;
     results.push('ERROR: ' + (error?.message || error));
   } finally {
-    if (worker) await worker.cleanup().catch(() => {});
     server.kill();
   }
 
   console.log('\n=== worker control channel — provider verification ===');
   for (const line of results) console.log('  ' + line);
-  console.log('  note: cooperative in-page drain awaits the tape-six hub release;');
-  console.log('        the force-kill backstop above is version-independent.');
+  console.log('  note: cooperative drain needs tape-six >= 1.10 in the iframe;');
+  console.log('        the force-kill backstop is version-independent.');
   console.log('  overall: ' + (ok ? 'PASS' : 'FAIL') + '\n');
   process.exitCode = ok ? 0 : 1;
 };
