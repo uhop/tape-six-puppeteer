@@ -10,14 +10,14 @@ const supportedExtRe = /\.(?:js|mjs|htm|html)$/i;
 // Chromium family and Firefox — WebKit is Playwright-only (use tape-six-playwright).
 export const supportedBrowsers = ['chromium', 'firefox'];
 
-export default class TestWorker extends EventServer {
+export default class TestWorker extends /** @type {*} */ (EventServer) {
   #ready;
   constructor(reporter, numberOfTasks, options) {
     super(reporter, numberOfTasks, options);
     this.counter = 0;
     this.browser = null;
-    this.tasks = {}; // id -> {context, page}
-    this.graceTimers = {}; // id -> timer set while an abort is draining
+    this.tasks = {};
+    this.graceTimers = {};
     this.#ready = this.#init();
   }
   async #init() {
@@ -189,7 +189,7 @@ export default class TestWorker extends EventServer {
           const iframe = document.createElement('iframe');
           iframe.id = 'test-iframe-' + frameId;
           iframe.src = url;
-          iframe.onerror = error => window.__tape6_error(frameId, error);
+          iframe.onerror = error => /** @type {*} */ (window).__tape6_error(frameId, error);
           document.body.append(iframe);
         },
         url,
@@ -235,10 +235,6 @@ export default class TestWorker extends EventServer {
     }
   }
   // Control plane. EventServer calls this with reason ∈ done | failOnce | timeout.
-  //   done             -> the test finished (or failed to load); tear the
-  //                       context down now. close(id) follows via page 'close'.
-  //   failOnce/timeout -> abort: cooperatively drain the running test, then
-  //                       force-kill (close the context) after graceTimeout.
   destroyTask(id, reason = 'done') {
     if (reason === 'done') {
       this.#kill(id);
@@ -254,7 +250,7 @@ export default class TestWorker extends EventServer {
     task.page
       .evaluate(
         (frameId, r) => {
-          const iframe = document.getElementById('test-iframe-' + frameId);
+          const iframe = /** @type {*} */ (document.getElementById('test-iframe-' + frameId));
           iframe?.contentWindow?.postMessage({type: 'tape6-terminate', reason: r}, '*');
         },
         id,

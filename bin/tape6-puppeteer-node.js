@@ -77,9 +77,7 @@ const ensureServer = async (serverUrl, startServer) => {
   try {
     const response = await fetch(serverUrl + '/--tests');
     if (response.ok) return null;
-  } catch (error) {
-    void error;
-  }
+  } catch {}
 
   if (!startServer) {
     console.error(
@@ -92,7 +90,6 @@ const ensureServer = async (serverUrl, startServer) => {
     process.exit(1);
   }
 
-  // start the server
   const serverBin = join(rootFolder, 'node_modules/tape-six/bin/tape6-server.js'),
     serverParts = new URL(serverUrl),
     host = serverParts.hostname,
@@ -114,7 +111,6 @@ const ensureServer = async (serverUrl, startServer) => {
   });
   child.unref();
 
-  // wait for server to become available
   for (let i = 0; i < 30; ++i) {
     await new Promise(resolve => setTimeout(resolve, 500));
     if (exited) {
@@ -127,9 +123,7 @@ const ensureServer = async (serverUrl, startServer) => {
     try {
       const response = await fetch(serverUrl + '/--tests');
       if (response.ok) return child;
-    } catch (error) {
-      void error;
-    }
+    } catch {}
   }
 
   child.kill();
@@ -194,7 +188,6 @@ const main = async () => {
     shutdown(1);
   });
 
-  // fetch test files from server
   let files = [];
   try {
     if (options.files.length) {
@@ -206,23 +199,18 @@ const main = async () => {
       const response = await fetch(serverUrl + '/--tests');
       if (response.ok) files = await response.json();
     }
-  } catch (error) {
-    void error;
-  }
+  } catch {}
 
   if (!files.length) {
     console.log('No test files found on the server.');
     shutdown(1);
   }
 
-  // fetch importmap from server
   let importmap = null;
   try {
     const response = await fetch(serverUrl + '/--importmap');
     if (response.ok) importmap = await response.json();
-  } catch (error) {
-    void error;
-  }
+  } catch {}
 
   const reporter = getReporter(),
     worker = new TestWorker(reporter, options.parallel, {

@@ -34,5 +34,6 @@ jobs:
       - run: |
           npm ci
           npm test
+          npm run js-check --if-present
           npx puppeteer browsers install firefox
           npm run test:firefox
