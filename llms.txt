@@ -126,4 +126,4 @@ Same as `tape-six`. Reads from `tape6.json` or the `"tape6"` section of `package
 - Docs: https://github.com/uhop/tape-six-puppeteer/wiki
 - npm: https://www.npmjs.com/package/tape-six-puppeteer
 - tape-six: https://github.com/uhop/tape-six
-- Full LLM reference: https://github.com/uhop/tape-six-puppeteer/blob/master/llms-full.txt
+- Full LLM reference: https://github.com/uhop/tape-six-puppeteer/blob/main/llms-full.txt

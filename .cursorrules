@@ -12,7 +12,7 @@ tape-six-puppeteer is a Puppeteer-based browser test runner for tape-six. Runs e
 - **Minimal dependencies.** Only `puppeteer` and `tape-six`. Do not add others without explicit approval.
 - **Puppeteer's bundled Chromium** is installed via `postinstall` (`puppeteer browsers install chrome`). Firefox is installed on demand (`npm run browser:all`).
 - **Do not modify or delete test expectations** without understanding why they changed.
-- **Do not add comments or remove comments** unless explicitly asked.
+- **No narrating comments.** Comments are short _why_-markers only — a non-trivial decision or constraint, or an algorithm reference. Never restate _what_ the code does; JSDoc only when explicitly requested.
 
 ## Code style
 
@@ -38,6 +38,7 @@ tape-six-puppeteer is a Puppeteer-based browser test runner for tape-six. Runs e
 - `npm run test:bun` — run with Bun
 - `npm run test:deno` — run with Deno
 - `npm run lint` — Prettier format check
+- `npm run js-check` — TypeScript type-lint of `.js` sources (`tsconfig.check.json`, no emit)
 
 ## File layout
 

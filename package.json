@@ -55,8 +55,8 @@
   },
   "homepage": "https://github.com/uhop/tape-six-puppeteer#readme",
   "github": "http://github.com/uhop/tape-six-puppeteer",
-  "llms": "https://raw.githubusercontent.com/uhop/tape-six-puppeteer/master/llms.txt",
-  "llmsFull": "https://raw.githubusercontent.com/uhop/tape-six-puppeteer/master/llms-full.txt",
+  "llms": "https://raw.githubusercontent.com/uhop/tape-six-puppeteer/main/llms.txt",
+  "llmsFull": "https://raw.githubusercontent.com/uhop/tape-six-puppeteer/main/llms-full.txt",
   "files": [
     "bin",
     "src",
@@ -64,8 +64,8 @@
     "llms-full.txt"
   ],
   "dependencies": {
-    "puppeteer": "^25.2.1",
-    "tape-six": "^1.11.0"
+    "puppeteer": "^25.3.0",
+    "tape-six": "^1.12.0"
   },
   "tape6": {
     "browser": [
@@ -82,11 +82,11 @@
     }
   },
   "devDependencies": {
-    "@types/node": "^26.0.1",
-    "prettier": "^3.9.1",
+    "@types/node": "^26.1.0",
+    "prettier": "^3.9.4",
     "typescript": "^6.0.3"
   },
   "allowScripts": {
-    "puppeteer@25.2.1": true
+    "puppeteer@25.3.0": true
   }
 }

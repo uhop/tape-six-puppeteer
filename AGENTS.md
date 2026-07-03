@@ -7,7 +7,7 @@
 This project uses a git submodule (wiki):
 
 ```bash
-git clone --recursive git@github.com:uhop/tape-six-puppeteer.git
+git clone --recursive https://github.com/uhop/tape-six-puppeteer.git
 cd tape-six-puppeteer
 npm install
 ```
@@ -24,12 +24,14 @@ There is no build step. `npm install` runs `postinstall` which installs Puppetee
 - **Install all engines:** `npm run browser:all` (Chromium + Firefox)
 - **Lint:** `npm run lint` (Prettier check)
 - **Lint fix:** `npm run lint:fix` (Prettier write)
+- **Type check:** `npm run js-check` (`tsc` over `.js` sources via `tsconfig.check.json`, no emit)
 
 ## Project structure
 
 ```
 tape-six-puppeteer/
 ├── package.json          # Package config; "tape6" section configures test discovery
+├── tsconfig.check.json   # js-check config (TypeScript as linter for .js sources)
 ├── bin/
 │   ├── tape6-puppeteer.js     # CLI entry point (--self flag or delegates to -node.js)
 │   └── tape6-puppeteer-node.js # Main CLI: config, reporter, server, test execution
@@ -46,6 +48,7 @@ tape-six-puppeteer/
 - **ES modules** throughout (`"type": "module"` in package.json).
 - **Prettier** for formatting (see `.prettierrc`).
 - Imports at the top of files, using `import` syntax.
+- **No narrating comments.** Comments are short _why_-markers only — a non-trivial decision or constraint, or an algorithm reference. Never restate _what_ the code does; JSDoc only when explicitly requested.
 - The package name is `tape-six-puppeteer` but the CLI command is `tape6-puppeteer`.
 
 ## Architecture

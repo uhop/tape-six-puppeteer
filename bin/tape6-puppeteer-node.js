@@ -11,7 +11,7 @@ import {getOptions, initReporter, showInfo, printFlagOptions} from 'tape-six/uti
 import {getReporter, setReporter} from 'tape-six/test.js';
 import {selectTimer} from 'tape-six/utils/timer.js';
 
-import TestWorker, {supportedBrowsers} from '../src/TestWorker.js';
+import {TestWorker, supportedBrowsers} from '../src/TestWorker.js';
 
 const rootFolder = process.cwd();
 

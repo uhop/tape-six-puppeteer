@@ -10,7 +10,7 @@ const supportedExtRe = /\.(?:js|mjs|htm|html)$/i;
 // Chromium family and Firefox — WebKit is Playwright-only (use tape-six-playwright).
 export const supportedBrowsers = ['chromium', 'firefox'];
 
-export default class TestWorker extends /** @type {*} */ (EventServer) {
+export class TestWorker extends /** @type {*} */ (EventServer) {
   #ready;
   constructor(reporter, numberOfTasks, options) {
     super(reporter, numberOfTasks, options);
@@ -62,11 +62,9 @@ export default class TestWorker extends /** @type {*} */ (EventServer) {
     this.#ready
       .then(() => this.#runTask(id, fileName))
       .catch(error => {
-        // Browser launch / setup failed (e.g. the requested engine isn't
-        // installed): no page exists, so there is no 'close' event to drive
-        // completion. Report the failure — otherwise a run where the browser
-        // never launches reports zero tests and exits 0 (a false pass) — then
-        // complete the task directly.
+        // Launch/setup failure (e.g. the engine isn't installed): no page
+        // exists, so no 'close' event can drive completion — and without a
+        // reported failure the run would exit 0 (a false pass).
         console.error('Failed to run test:', fileName, error);
         try {
           this.report(id, {
@@ -106,8 +104,6 @@ export default class TestWorker extends /** @type {*} */ (EventServer) {
     }
     this.tasks[id] = {context, page};
 
-    // The single completion path: closing the context (done / drain / kill)
-    // closes the page, which lands here and reports the task as finished.
     page.on('close', () => {
       this.#clearGrace(id);
       if (this.tasks[id]) {
@@ -122,8 +118,6 @@ export default class TestWorker extends /** @type {*} */ (EventServer) {
         try {
           this.report(taskId, event);
           if ((event.type === 'end' && event.test === 0) || event.type === 'terminated') {
-            // Normal completion: tear the context down; close(id) follows via
-            // the page 'close' handler.
             this.destroyTask(taskId, 'done');
           }
         } catch (error) {
@@ -259,9 +253,9 @@ export default class TestWorker extends /** @type {*} */ (EventServer) {
       .catch(() => {});
     this.graceTimers[id] = setTimeout(() => this.#kill(id), this.graceTimeout);
   }
-  // Close the task's context. Idempotent: the page 'close' handler clears
-  // tracking and calls close(id), so a second call (e.g. base close() ->
-  // destroyTask('done')) finds no task and returns.
+  // Idempotent: the page 'close' handler clears tracking and calls close(id),
+  // so a second call (e.g. base close() -> destroyTask('done')) finds no task
+  // and returns.
   #kill(id) {
     this.#clearGrace(id);
     const task = this.tasks[id];
@@ -289,3 +283,5 @@ export default class TestWorker extends /** @type {*} */ (EventServer) {
     }
   }
 }
+
+export default TestWorker;

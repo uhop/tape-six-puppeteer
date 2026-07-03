@@ -1,15 +1,24 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
+# Dependabot — version-update PRs only when a new version escapes the
+# declared caret range, all matching updates bundled into one PR per
+# ecosystem per cycle. Security advisories are a separate, always-on
+# channel and continue to fire regardless of these settings.
 # https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
 
 version: 2
 updates:
-  - package-ecosystem: 'npm' # See documentation for possible values
-    directory: '/' # Location of package manifests
+  - package-ecosystem: 'npm'
+    directory: '/'
     schedule:
       interval: 'weekly'
+    versioning-strategy: 'increase-if-necessary'
+    groups:
+      npm-deps:
+        patterns: ['*']
+
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
       interval: 'weekly'
+    groups:
+      gh-actions:
+        patterns: ['*']
