@@ -85,5 +85,8 @@
     "@types/node": "^26.0.1",
     "prettier": "^3.9.1",
     "typescript": "^6.0.3"
+  },
+  "allowScripts": {
+    "puppeteer@25.2.1": true
   }
 }
