@@ -121,7 +121,7 @@ Run several engines with one script each:
 
 ## Docs
 
-See the [wiki](https://github.com/uhop/tape-six-puppeteer/wiki) for full documentation.
+Full documentation is in the **[wiki](https://github.com/uhop/tape-six-puppeteer/wiki)** &mdash; browse the [index](https://github.com/uhop/tape-six-puppeteer/wiki/Home), or [search it](https://uhop.github.io/wiki-search/app/?wiki=uhop/tape-six-puppeteer) by name.
 `tape-six` has its own [wiki](https://github.com/uhop/tape-six/wiki).
 
 `tape-six-puppeteer` uses the same test configuration and CLI conventions as `tape-six`.
