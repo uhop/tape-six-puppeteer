@@ -1,7 +1,7 @@
 {
   "name": "tape-six-puppeteer",
-  "version": "1.1.0",
-  "description": "Puppeteer-based browser test runner for tape-six. Runs each test file in its own iframe inside headless Chrome. Works with Node, Deno, and Bun.",
+  "version": "1.2.0",
+  "description": "Puppeteer-based browser test runner for tape-six. Runs each test file in its own browser context (Chromium or Firefox). Works with Node, Deno, and Bun.",
   "type": "module",
   "bin": {
     "tape6-puppeteer": "bin/tape6-puppeteer.js",
