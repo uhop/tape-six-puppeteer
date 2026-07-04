@@ -28,7 +28,12 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
       '--browser, -b <name>',
       'Browser engine: chromium|firefox (env: TAPE6_BROWSER, default: chromium)'
     ],
+    [
+      '--browsers <list>',
+      'Run several engines: comma-separated or "all" (env: TAPE6_BROWSERS; overrides --browser)'
+    ],
     ['--start-server', 'Auto-start tape6-server'],
+    ['--h2', 'HTTP/2 mode: https server URL, --h2 self-launch (env: TAPE6_PROTOCOL=h2)'],
     ['--info', 'Show configuration info and exit'],
     ['--self', 'Print the path to this script and exit'],
     ['--help, -h', 'Show this help message and exit'],

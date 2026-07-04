@@ -4,7 +4,7 @@
 
 - Real browser environment: tests run in a headless engine (Chromium or Firefox) with full DOM and browser API access
 - Per-context isolation: each test file runs in its own browser context (isolated cookies/storage), in an iframe inside that context's page
-- Multiple engines: `--browser` / `TAPE6_BROWSER` selects `chromium` (default) or `firefox`
+- Multiple engines: `--browser` / `TAPE6_BROWSER` selects `chromium` (default) or `firefox`; `--browsers` / `TAPE6_BROWSERS` fans out over both in one invocation
 - Cross-runtime: Node, Deno, and Bun with the same test files
 - Drop-in companion for `tape6` (worker-thread runner) and `tape6-proc` (subprocess runner)
 - Same configuration format as `tape-six`
@@ -45,7 +45,7 @@ tape6-puppeteer --start-server --flags FO
 Runs test files in parallel, each in its own browser context inside a headless engine (Chromium by default; Firefox via `--browser`).
 
 ```bash
-tape6-puppeteer [--flags FLAGS] [--par N] [--browser NAME] [--start-server] [--server-url URL] [--info] [--help] [--version] [tests...]
+tape6-puppeteer [--flags FLAGS] [--par N] [--browser NAME] [--browsers LIST] [--start-server] [--h2] [--server-url URL] [--info] [--help] [--version] [tests...]
 ```
 
 ### Options
@@ -53,8 +53,10 @@ tape6-puppeteer [--flags FLAGS] [--par N] [--browser NAME] [--start-server] [--s
 - `--flags FLAGS` (`-f`) — output control flags (see Supported flags below).
 - `--par N` (`-p`) — number of parallel iframes. Default: all CPU cores (via `os.availableParallelism()` or `navigator.hardwareConcurrency`).
 - `--browser NAME` (`-b`) — browser engine: `chromium` (default) or `firefox`. Overrides `TAPE6_BROWSER`. Only Chrome is installed by `postinstall`; a missing engine fails the run with an `npx puppeteer browsers install <product>` hint.
+- `--browsers LIST` — multi-engine fan-out: comma-separated engine names or `all` (env: `TAPE6_BROWSERS`; overrides `--browser`). Runs the full suite once per engine sequentially — fresh reporter and per-engine summary each — then prints a final `Browsers: <name> PASS|FAIL, ...` line; exits non-zero if any engine fails. Duplicates are deduped; a failed-to-launch engine records FAIL and the remaining engines still run.
 - `--start-server` — auto-start `tape6-server` if not already running.
-- `--server-url URL` (`-u`) — server URL. Overrides `TAPE6_SERVER_URL` and `HOST`/`PORT`.
+- `--h2` — HTTP/2 mode: implies an `https:` server URL and is passed through to a self-launched server. Overrides `TAPE6_PROTOCOL` and the `tape6.server.protocol` config (flag > env > config, mirroring the server's own resolution).
+- `--server-url URL` (`-u`) — server URL. Overrides `TAPE6_SERVER_URL` and `HOST`/`PORT`. An explicit `https:` URL enables TLS handling even without `--h2`.
 - `--self` — prints the absolute path to `tape6-puppeteer.js` and exits. Used in cross-runtime scripts.
 - `--info` — prints runtime, reporter, flags, parallelism, and resolved test files, then exits. Does not require a running server.
 - `--help` (`-h`) — shows help message with all options and flag descriptions, then exits.
@@ -77,6 +79,13 @@ tape6-puppeteer --start-server --par 2 --flags FO
 # Run on Firefox
 tape6-puppeteer --start-server --browser firefox --flags FO
 TAPE6_BROWSER=firefox tape6-puppeteer --start-server --flags FO
+
+# Fan out over both engines in one invocation
+tape6-puppeteer --start-server --browsers all --flags FO
+tape6-puppeteer --start-server --browsers chromium,firefox --flags FO
+
+# HTTP/2 server
+tape6-puppeteer --h2 --start-server --flags FO
 
 # Use with already-running server
 tape6-puppeteer --flags FO
@@ -125,6 +134,8 @@ TAPE6_FLAGS=FO tape6-puppeteer --start-server
 - Without it: the server must already be running. The runner prints instructions if it's unreachable.
 - Server URL: `TAPE6_SERVER_URL` env var, or `HOST`/`PORT`, or default `http://localhost:3000`.
 - Server endpoints used: `GET /--tests` (test file list), `GET /--patterns?q=...` (filtered file list), `GET /--importmap` (import map).
+- HTTP/2 (tape-six 1.12+): enable with `--h2`, `TAPE6_PROTOCOL=h2`, or `tape6.server.protocol` in config — the runner resolves flag > env > config exactly like the server, upgrades the server URL to `https:`, and passes `--h2` to a self-launched server. The h2 server mode is Node-only; under Bun/Deno the server child is spawned with `node` from `PATH`. HTTP/1.1 stays the default (self-signed TLS blocks service-worker registration; h2 exists for h2-only features such as Chromium's `fetch()` request-body streaming).
+- Certificates in h2 mode: the browser launches with `acceptInsecureCerts: true` (covers Chromium over CDP and Firefox over WebDriver BiDi); the runner's own control requests (`src/controlFetch.js`) go through `node:https` with trust scoped to those requests — `TAPE6_CERT` pinned as CA when set, else the server's cached auto-generated certificate (`node_modules/.cache/tape6/cert.pem`), else relaxed verification. Never process-wide (`NODE_TLS_REJECT_UNAUTHORIZED` is not touched).
 
 ## Configuration
 
@@ -155,7 +166,10 @@ The `importmap` section is served by `tape6-server` at `/--importmap` and inject
 - `TAPE6_JSONL` — force JSONL reporter (any non-empty value).
 - `TAPE6_MIN` — force minimal reporter (any non-empty value).
 - `TAPE6_SERVER_URL` — full server URL override (e.g. `http://localhost:4000`). Overridden by `--server-url`.
+- `TAPE6_PROTOCOL` — `h1` (default) or `h2`. Overridden by `--h2`; overrides `tape6.server.protocol` config.
+- `TAPE6_CERT` / `TAPE6_KEY` — TLS certificate/key paths for h2 (e.g. from mkcert). The server serves with them; the runner pins `TAPE6_CERT` as the CA for its control requests.
 - `TAPE6_BROWSER` — browser engine: `chromium` (default) or `firefox`. Overridden by `--browser` (precedence: CLI > env > default).
+- `TAPE6_BROWSERS` — multi-engine fan-out list (comma-separated or `all`). Overridden by `--browsers`; when set (either way), the fan-out overrides `--browser`/`TAPE6_BROWSER`.
 - `HOST` — server hostname (default: `localhost`).
 - `PORT` — server port (default: `3000`).
 - `TAPE6_GRACE_TIMEOUT` — control channel: ms a worker gets to drain (run cleanup hooks) after a terminate, before its browser context is force-closed (default: `5000`).
@@ -172,25 +186,28 @@ The `importmap` section is served by `tape6-server` at `/--importmap` and inject
 
 ### Main CLI (`bin/tape6-puppeteer-node.js`)
 
-1. Parses CLI arguments via `getOptions()` from `tape-six` (`--flags`, `--par`, `--start-server`, `--server-url`, `--info`, positional test patterns).
-2. Initializes the reporter via `initReporter()` from `tape-six`.
-3. Ensures `tape6-server` is reachable (auto-starts if `--start-server`).
-4. Fetches test files from server via `GET /--patterns?q=...` (if patterns given) or `GET /--tests`.
-5. Fetches importmap from `GET /--importmap`.
-6. Creates a `TestWorker` instance and executes all test files.
-7. Reports final results and exits with code 0 (success) or 1 (failures).
-8. Kills auto-started server on exit.
+1. Parses CLI arguments via `getOptions()` from `tape-six` (`--flags`, `--par`, `--browser`, `--browsers`, `--start-server`, `--h2`, `--server-url`, `--info`, positional test patterns) and validates the engine names against the supported engines.
+2. Resolves the protocol the way the server does (`--h2` > `TAPE6_PROTOCOL` > `tape6.server.protocol` config > `h1`); in h2 mode upgrades the server URL scheme to `https:`.
+3. Initializes the reporter via `initReporter()` from `tape-six`.
+4. Ensures `tape6-server` is reachable (auto-starts if `--start-server`, passing `--h2` for an `https:` URL; under Bun/Deno the h2 server child runs on `node`).
+5. Fetches test files from server via `GET /--patterns?q=...` (if patterns given) or `GET /--tests`.
+6. Fetches importmap from `GET /--importmap`. All control requests go through `src/controlFetch.js`, which tolerates the server's self-signed certificate on `https:` with request-scoped trust.
+7. For each selected engine (one by default; several with `--browsers`), creates a `TestWorker` instance and executes all test files — a fresh reporter per engine so counts and summaries are per-engine.
+8. Reports final results (plus a per-engine `Browsers: ... PASS|FAIL` line when fanning out) and exits with code 0 (success) or 1 (any failure on any engine).
+9. Kills auto-started server on exit.
 
 ### TestWorker (`src/TestWorker.js`)
 
 Extends `EventServer` from `tape-six`. Manages the Puppeteer browser and per-task contexts:
 
-- **`constructor(reporter, numberOfTasks, options)`** — launches one headless browser of the selected engine (`options.browser`, default `chromium`) via `puppeteer.launch({browser})`; the user-facing `chromium` maps to Puppeteer's `chrome` product, Firefox runs over WebDriver BiDi, and `--no-sandbox` is applied to Chromium only.
+- **`constructor(reporter, numberOfTasks, options)`** — launches one headless browser of the selected engine (`options.browser`, default `chromium`) via `puppeteer.launch({browser})`; the user-facing `chromium` maps to Puppeteer's `chrome` product, Firefox runs over WebDriver BiDi, and `--no-sandbox` is applied to Chromium only. With an `https:` server URL the launch adds `acceptInsecureCerts: true` (the h2 self-signed certificate; covers both engines).
 - **`makeTask(fileName)`** — creates a fresh `BrowserContext` → `Page` for the test (full origin/storage isolation), exposes `__tape6_reporter` and `__tape6_error` on that page, navigates it to the server origin, and runs the test file in an iframe inside it. Returns a task ID. If the browser failed to launch (e.g. the engine isn't installed), it reports a failure so the run exits non-zero rather than reporting a false pass.
 - **`destroyTask(id, reason)`** — the control plane. `done` closes the task's context; an abort reason (`failOnce` / `timeout`) drains the running test (posts `tape6-terminate` into the iframe), then force-kills it by closing the context after `graceTimeout`.
 - **`cleanup()`** — closes the browser.
 
 Task completion is driven by each page's `close` event, not by a reported event, so a force-killed page (which emits nothing) still completes `close(id)` exactly once.
+
+Types ship as a hand-written sidecar (`src/TestWorker.d.ts`, advertised via `// @ts-self-types` in `TestWorker.js`): `TestWorker`, `TestWorkerOptions`, and `supportedBrowsers`, built on tape-six's shipped `EventServer` types.
 
 ### Browser engines
 
@@ -199,6 +216,8 @@ The engine is chosen with `--browser <chromium|firefox>` / `-b`, or `TAPE6_BROWS
 `postinstall` fetches only Chrome; Firefox is installed on demand (`npm run browser:all`, or `npx puppeteer browsers install firefox`). Requesting an engine that isn't installed surfaces a clear `npx puppeteer browsers install <product>` hint and fails the run (a launch failure reports a failure, so the run exits non-zero rather than a false pass).
 
 The sibling package `tape-six-playwright` exposes the same `--browser` / `TAPE6_BROWSER` contract, plus `webkit` (Puppeteer drives only Chromium and Firefox).
+
+`--browsers` (plural) fans the suite out over both engines in one invocation — sequential runs, one `TestWorker` per engine, per-engine summaries, and a final per-engine PASS/FAIL verdict. This is the cheap way to catch cross-engine web-platform gaps (an engine missing a spec method — e.g. a Web Streams member — passes on the other and fails only there).
 
 ### Iframe lifecycle
 
@@ -234,7 +253,7 @@ This is the driver-backed browser's answer to "no in-page force-kill": a hung, n
 
 ## Dependencies
 
-- **`tape-six`** — the core test library. Imports: `State.js`, `utils/EventServer.js`, `utils/config.js` (`getOptions`, `initReporter`, `showInfo`), `test.js`, `utils/timer.js`.
+- **`tape-six`** — the core test library. Imports: `State.js`, `utils/EventServer.js`, `utils/config.js` (`getOptions`, `getConfig`, `initReporter`, `showInfo`, `runtime`), `test.js`, `utils/timer.js`.
 - **`puppeteer`** — headless browser automation (Chromium and Firefox). Bundled Chromium installed via `postinstall`; Firefox fetched on demand (`npm run browser:all`).
 
 ## Writing tests

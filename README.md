@@ -74,6 +74,30 @@ npm test
 - **Manual:** run `npx tape6-server` in a separate terminal, then run tests without `--start-server`.
 - **Custom URL:** use `--server-url URL` (`-u`), or set `TAPE6_SERVER_URL` or `HOST`/`PORT` environment variables.
 
+### HTTP/2
+
+`tape6-server` (tape-six 1.12+) can serve HTTPS with HTTP/2 (HTTP/1.1 is still accepted via
+ALPN). Opt in with `--h2`, `TAPE6_PROTOCOL=h2`, or the sticky `tape6.server.protocol`
+config — the runner mirrors the server's flag > env > config resolution:
+
+```bash
+tape6-puppeteer --h2 --start-server --flags FO
+tape6-puppeteer -u https://localhost:3000 --flags FO   # external h2 server
+```
+
+`--h2` implies an `https:` server URL and is passed through to a self-launched server.
+Certificates are handled automatically: the browser launches with `acceptInsecureCerts`
+(covers Chromium and Firefox alike), and the runner's own control requests trust
+`TAPE6_CERT` when set (e.g. an mkcert certificate), else the server's cached
+auto-generated certificate (`node_modules/.cache/tape6/`), else fall back to relaxed
+verification scoped to those requests only — never process-wide.
+
+HTTP/1.1 remains the default: h2 means TLS, and a self-signed certificate blocks
+service-worker registration even after an interstitial click-through. Opt in per suite for
+features that require h2 — e.g. `fetch()` request-body streaming (`duplex: 'half'`), which
+Chromium supports over h2/h3 only. The h2 server mode is Node-only; under Bun or Deno the
+runner starts the server child with `node` from `PATH`.
+
 ## Choosing a browser engine
 
 Tests run on Chromium by default. Select another engine with `--browser` (`-b`) or the
@@ -102,6 +126,27 @@ Run several engines with one script each:
   }
 }
 ```
+
+Or fan out over both engines in one invocation with `--browsers` (comma-separated, or
+`all`; env `TAPE6_BROWSERS`; overrides `--browser`). Each engine runs the full suite and
+prints its own summary, followed by a per-engine verdict; the run fails if any engine fails:
+
+```bash
+tape6-puppeteer --start-server --browsers all --flags FO
+tape6-puppeteer --start-server --browsers chromium,firefox --flags FO
+```
+
+```
+Browser: chromium
+  ♥️   tests: 10, asserts: 24, passed: 24, ...
+Browser: firefox
+  ♥️   tests: 10, asserts: 24, passed: 24, ...
+
+Browsers: chromium PASS, firefox PASS
+```
+
+This is the cheap way to catch cross-engine web-platform gaps (e.g. a Web Streams method
+one engine hasn't shipped) that single-engine testing can't see.
 
 > For WebKit support, use the sibling runner
 > [tape-six-playwright](https://github.com/uhop/tape-six-playwright); Puppeteer drives only

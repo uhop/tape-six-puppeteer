@@ -1,7 +1,11 @@
+// @ts-self-types="./TestWorker.d.ts"
+
 import puppeteer from 'puppeteer';
 
 import {isStopTest} from 'tape-six/State.js';
 import EventServer from 'tape-six/utils/EventServer.js';
+
+/** @typedef {import('./TestWorker.js').TestWorkerOptions} TestWorkerOptions */
 
 const supportedExtRe = /\.(?:js|mjs|htm|html)$/i;
 
@@ -10,7 +14,7 @@ const supportedExtRe = /\.(?:js|mjs|htm|html)$/i;
 // Chromium family and Firefox — WebKit is Playwright-only (use tape-six-playwright).
 export const supportedBrowsers = ['chromium', 'firefox'];
 
-export class TestWorker extends /** @type {*} */ (EventServer) {
+export class TestWorker extends EventServer {
   #ready;
   constructor(reporter, numberOfTasks, options) {
     super(reporter, numberOfTasks, options);
@@ -21,7 +25,8 @@ export class TestWorker extends /** @type {*} */ (EventServer) {
     this.#ready = this.#init();
   }
   async #init() {
-    const name = this.options.browser || supportedBrowsers[0];
+    const options = /** @type {TestWorkerOptions} */ (this.options),
+      name = options.browser || supportedBrowsers[0];
     if (!supportedBrowsers.includes(name)) {
       throw new Error(`Unsupported browser "${name}". Supported: ${supportedBrowsers.join(', ')}.`);
     }
@@ -29,10 +34,13 @@ export class TestWorker extends /** @type {*} */ (EventServer) {
     // Chromium build — Chrome for Testing) or 'firefox' (driven over WebDriver
     // BiDi). We keep the user-facing value `chromium` because it names the
     // engine, matching the Playwright sibling.
-    const product = name === 'chromium' ? 'chrome' : name;
+    const product = /** @type {'chrome' | 'firefox'} */ (name === 'chromium' ? 'chrome' : name);
     // `--no-sandbox` is a Chromium switch; Firefox (WebDriver BiDi) launches without it.
     const launchOptions = {headless: true, browser: product};
     if (name === 'chromium') launchOptions.args = ['--no-sandbox'];
+    // h2 mode: the tape6 cert ladder ends in a self-signed cert; this launch
+    // option covers Chromium (CDP) and Firefox (WebDriver BiDi) alike.
+    if (/^https:/i.test(options.serverUrl || '')) launchOptions.acceptInsecureCerts = true;
     try {
       this.browser = await puppeteer.launch(launchOptions);
     } catch (error) {
@@ -149,7 +157,9 @@ export class TestWorker extends /** @type {*} */ (EventServer) {
       });
 
       // navigate to the server so the iframe inherits the correct origin
-      await page.goto(this.options.serverUrl + '/--tests', {waitUntil: 'load'});
+      await page.goto(/** @type {string} */ (this.options.serverUrl) + '/--tests', {
+        waitUntil: 'load'
+      });
       await page.evaluate(() => {
         document.documentElement.innerHTML = '<head></head><body></body>';
       });
@@ -171,8 +181,7 @@ export class TestWorker extends /** @type {*} */ (EventServer) {
     }
   }
   async #runInIframe(id, page, fileName) {
-    const importmap = this.options.importmap,
-      flags = this.options.flags || '';
+    const {importmap, flags = ''} = /** @type {TestWorkerOptions} */ (this.options);
 
     if (/\.html?$/i.test(fileName)) {
       const search = new URLSearchParams({id, 'test-file-name': fileName});

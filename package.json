@@ -10,12 +10,14 @@
   "scripts": {
     "lint": "prettier --check .",
     "lint:fix": "prettier --write .",
+    "ts-check": "tsc --noEmit",
     "js-check": "tsc --project tsconfig.check.json",
     "browser": "puppeteer browsers install chrome",
     "browser:all": "puppeteer browsers install chrome && puppeteer browsers install firefox",
     "postinstall": "puppeteer browsers install chrome",
     "test": "node ./bin/tape6-puppeteer.js --start-server --flags FO",
     "test:firefox": "node ./bin/tape6-puppeteer.js --start-server --browser firefox --flags FO",
+    "test:all": "node ./bin/tape6-puppeteer.js --start-server --browsers all --flags FO",
     "test:bun": "bun run ./bin/tape6-puppeteer.js --start-server --flags FO",
     "test:deno": "deno run -A ./bin/tape6-puppeteer.js --start-server --flags FO"
   },
@@ -65,7 +67,7 @@
   ],
   "dependencies": {
     "puppeteer": "^25.3.0",
-    "tape-six": "^1.12.0"
+    "tape-six": "^1.13.0"
   },
   "tape6": {
     "browser": [
