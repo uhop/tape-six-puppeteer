@@ -131,7 +131,7 @@ TAPE6_FLAGS=FO tape6-puppeteer --start-server
 `tape6-puppeteer` requires `tape6-server` (from `tape-six`) to serve test files to the browser.
 
 - `--start-server`: auto-starts the server before running tests.
-- Without it: the server must already be running. The runner prints instructions if it's unreachable.
+- Without it: the server must already be running. The runner prints instructions if it's unreachable. Probes are deadline-bounded (3s per request); a TLS request answered in plaintext (an h1 server on an `https:` URL) is reported as a protocol mismatch instead of hanging.
 - Server URL: `TAPE6_SERVER_URL` env var, or `HOST`/`PORT`, or default `http://localhost:3000`.
 - Server endpoints used: `GET /--tests` (test file list), `GET /--patterns?q=...` (filtered file list), `GET /--importmap` (import map).
 - HTTP/2 (tape-six 1.12+): enable with `--h2`, `TAPE6_PROTOCOL=h2`, or `tape6.server.protocol` in config — the runner resolves flag > env > config exactly like the server, upgrades the server URL to `https:`, and passes `--h2` to a self-launched server. The h2 server mode is Node-only; under Bun/Deno the server child is spawned with `node` from `PATH`. HTTP/1.1 stays the default (self-signed TLS blocks service-worker registration; h2 exists for h2-only features such as Chromium's `fetch()` request-body streaming).
@@ -189,7 +189,7 @@ The `importmap` section is served by `tape6-server` at `/--importmap` and inject
 1. Parses CLI arguments via `getOptions()` from `tape-six` (`--flags`, `--par`, `--browser`, `--browsers`, `--start-server`, `--h2`, `--server-url`, `--info`, positional test patterns) and validates the engine names against the supported engines.
 2. Resolves the protocol the way the server does (`--h2` > `TAPE6_PROTOCOL` > `tape6.server.protocol` config > `h1`); in h2 mode upgrades the server URL scheme to `https:`.
 3. Initializes the reporter via `initReporter()` from `tape-six`.
-4. Ensures `tape6-server` is reachable (auto-starts if `--start-server`, passing `--h2` for an `https:` URL; under Bun/Deno the h2 server child runs on `node`).
+4. Ensures `tape6-server` is reachable (auto-starts if `--start-server`, passing `--h2` for an `https:` URL; under Bun/Deno the h2 server child runs on `node`). Probes have a per-request deadline; a TLS-vs-plaintext mismatch is reported explicitly, and self-launch waits briefly for the port to free after one (chained h1 → h2 runs).
 5. Fetches test files from server via `GET /--patterns?q=...` (if patterns given) or `GET /--tests`.
 6. Fetches importmap from `GET /--importmap`. All control requests go through `src/controlFetch.js`, which tolerates the server's self-signed certificate on `https:` with request-scoped trust.
 7. For each selected engine (one by default; several with `--browsers`), creates a `TestWorker` instance and executes all test files — a fresh reporter per engine so counts and summaries are per-engine.

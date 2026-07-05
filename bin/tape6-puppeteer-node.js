@@ -19,7 +19,7 @@ import {getReporter, setReporter} from 'tape-six/test.js';
 import {selectTimer} from 'tape-six/utils/timer.js';
 
 import {TestWorker, supportedBrowsers} from '../src/TestWorker.js';
-import {createControlFetch} from '../src/controlFetch.js';
+import {createControlFetch, isProtocolMismatch} from '../src/controlFetch.js';
 
 const rootFolder = process.cwd();
 const controlFetch = createControlFetch(rootFolder);
@@ -87,21 +87,52 @@ const getServerUrl = () => {
   return `http://${host}:${port}`;
 };
 
-const ensureServer = async (serverUrl, startServer, h2) => {
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+const probeServer = async serverUrl => {
   try {
     const response = await controlFetch(serverUrl + '/--tests');
-    if (response.ok) return null;
-  } catch {}
+    return response.ok ? 'ok' : 'down';
+  } catch (error) {
+    return isProtocolMismatch(error) ? 'mismatch' : 'down';
+  }
+};
+
+const ensureServer = async (serverUrl, startServer, h2) => {
+  const mismatchMsg =
+    `Error: a TLS request to ${serverUrl} got a plaintext HTTP answer — ` +
+    'an h1 (non-TLS) server is listening there.\n' +
+    'Stop it, or drop --h2 / use an http: --server-url to match it.\n';
+
+  let status = await probeServer(serverUrl);
+  if (status === 'ok') return null;
 
   if (!startServer) {
     console.error(
-      `Error: tape6-server is not reachable at ${serverUrl}\n\n` +
-        'Start it manually:\n' +
-        `  npx tape6-server${h2 ? ' --h2' : ''}\n\n` +
-        'Or re-run with --start-server:\n' +
-        '  tape6-puppeteer --start-server --flags FO\n'
+      status === 'mismatch'
+        ? mismatchMsg
+        : `Error: tape6-server is not reachable at ${serverUrl}\n\n` +
+            'Start it manually:\n' +
+            `  npx tape6-server${h2 ? ' --h2' : ''}\n\n` +
+            'Or re-run with --start-server:\n' +
+            '  tape6-puppeteer --start-server --flags FO\n'
     );
     process.exit(1);
+  }
+
+  if (status === 'mismatch') {
+    // chained runs: the previous run's h1 server child may still be releasing
+    // the port — give it a grace window before self-launching
+    const graceDeadline = Date.now() + 4000;
+    while (status === 'mismatch' && Date.now() < graceDeadline) {
+      await sleep(250);
+      status = await probeServer(serverUrl);
+    }
+    if (status === 'ok') return null;
+    if (status === 'mismatch') {
+      console.error(mismatchMsg);
+      process.exit(1);
+    }
   }
 
   const serverBin = join(rootFolder, 'node_modules/tape-six/bin/tape6-server.js'),
@@ -133,8 +164,9 @@ const ensureServer = async (serverUrl, startServer, h2) => {
   });
   child.unref();
 
-  for (let i = 0; i < 30; ++i) {
-    await new Promise(resolve => setTimeout(resolve, 500));
+  const startDeadline = Date.now() + 15000;
+  while (Date.now() < startDeadline) {
+    await sleep(500);
     if (exited) {
       console.error(
         `Error: tape6-server exited with code ${exitCode} while starting on ${host}:${port}` +
@@ -142,10 +174,13 @@ const ensureServer = async (serverUrl, startServer, h2) => {
       );
       process.exit(1);
     }
-    try {
-      const response = await controlFetch(serverUrl + '/--tests');
-      if (response.ok) return child;
-    } catch {}
+    status = await probeServer(serverUrl);
+    if (status === 'ok') return child;
+    if (status === 'mismatch') {
+      child.kill();
+      console.error(mismatchMsg);
+      process.exit(1);
+    }
   }
 
   child.kill();

@@ -57,8 +57,6 @@
   },
   "homepage": "https://github.com/uhop/tape-six-puppeteer#readme",
   "github": "http://github.com/uhop/tape-six-puppeteer",
-  "llms": "https://raw.githubusercontent.com/uhop/tape-six-puppeteer/main/llms.txt",
-  "llmsFull": "https://raw.githubusercontent.com/uhop/tape-six-puppeteer/main/llms-full.txt",
   "files": [
     "bin",
     "src",

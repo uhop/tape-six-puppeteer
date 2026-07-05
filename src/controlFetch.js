@@ -8,28 +8,52 @@ import process from 'node:process';
 // these requests only — never process-wide. Ladder: TAPE6_CERT pinned as CA;
 // else the server's cached self-signed cert (tape6 cert-ladder location);
 // else relaxed verification.
+
+// hard deadline on every request: a dying listener can accept and never answer
+// (the 2026-07-04 chained-run hang)
+const TIMEOUT = 3000;
+
+// a TLS request read a plaintext HTTP answer — an h1 server behind an https: URL
+export const isProtocolMismatch = error =>
+  !!error && (error.code === 'EPROTO' || /wrong version number/i.test(error.message || ''));
+
 export const createControlFetch = (rootFolder = process.cwd()) => {
   let tlsOptions = null;
   const get = (url, options) =>
     new Promise((resolve, reject) => {
-      https
-        .get(url, options, response => {
-          const chunks = [];
-          response.on('data', chunk => chunks.push(chunk));
-          response.on('error', reject);
-          response.on('end', () => {
-            const body = Buffer.concat(chunks);
-            resolve({
-              ok: response.statusCode >= 200 && response.statusCode < 300,
-              status: response.statusCode,
-              json: async () => JSON.parse(body.toString())
-            });
+      const request = https.get(url, options, response => {
+        const chunks = [];
+        response.on('data', chunk => chunks.push(chunk));
+        response.on('error', error => {
+          clearTimeout(timer);
+          reject(error);
+        });
+        response.on('end', () => {
+          clearTimeout(timer);
+          const body = Buffer.concat(chunks);
+          resolve({
+            ok: response.statusCode >= 200 && response.statusCode < 300,
+            status: response.statusCode,
+            json: async () => JSON.parse(body.toString())
           });
-        })
-        .on('error', reject);
+        });
+      });
+      const timer = setTimeout(
+        () =>
+          request.destroy(
+            Object.assign(new Error(`control request timed out after ${TIMEOUT}ms: ${url}`), {
+              code: 'ETIMEDOUT'
+            })
+          ),
+        TIMEOUT
+      );
+      request.on('error', error => {
+        clearTimeout(timer);
+        reject(error);
+      });
     });
   return async url => {
-    if (!/^https:/i.test(url)) return fetch(url);
+    if (!/^https:/i.test(url)) return fetch(url, {signal: AbortSignal.timeout(TIMEOUT)});
     if (tlsOptions) return get(url, tlsOptions);
     const certPath = process.env.TAPE6_CERT;
     if (certPath) {
@@ -48,7 +72,9 @@ export const createControlFetch = (rootFolder = process.cwd()) => {
         const response = await get(url, options);
         tlsOptions = options;
         return response;
-      } catch {
+      } catch (error) {
+        // a relaxed retry after a timeout would just burn a second deadline
+        if (error.code === 'ETIMEDOUT') throw error;
         // stale cache or an external server with its own cert — try relaxed
       }
     }
