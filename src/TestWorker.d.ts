@@ -1,4 +1,5 @@
 import {EventServer, EventServerOptions, EventServerReporter} from 'tape-six/utils/EventServer.js';
+import type {OutputReporter} from 'tape-six/test.js';
 import type {Browser, BrowserContext, Page} from 'puppeteer';
 
 /**
@@ -28,7 +29,12 @@ export const supportedBrowsers: string[];
  * by the page `close` event. See ARCHITECTURE.md.
  */
 export class TestWorker extends EventServer {
-  constructor(reporter: EventServerReporter, numberOfTasks?: number, options?: TestWorkerOptions);
+  // OutputReporter in the union: State lacks EventServerReporter.state's index signature (upstream gap)
+  constructor(
+    reporter: EventServerReporter | OutputReporter,
+    numberOfTasks?: number,
+    options?: TestWorkerOptions
+  );
 
   options: TestWorkerOptions;
 

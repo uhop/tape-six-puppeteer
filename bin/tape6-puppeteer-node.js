@@ -19,7 +19,7 @@ import {getReporter, setReporter} from 'tape-six/test.js';
 import {selectTimer} from 'tape-six/utils/timer.js';
 
 import {TestWorker, supportedBrowsers} from '../src/TestWorker.js';
-import {createControlFetch, isProtocolMismatch} from '../src/controlFetch.js';
+import {createControlFetch, isProtocolMismatch} from 'tape-six/utils/controlFetch.js';
 
 const rootFolder = process.cwd();
 const controlFetch = createControlFetch(rootFolder);
@@ -211,9 +211,12 @@ const main = async () => {
   // mirrors tape6-server's flag > env > config resolution, so the URL scheme
   // below agrees with the protocol a self-launched server will pick
   let protocol = options.optionFlags['--h2'] === '' ? 'h2' : process.env.TAPE6_PROTOCOL || '';
-  if (!protocol) protocol = (await getConfig(rootFolder)).server?.protocol || 'h1';
+  if (!protocol)
+    protocol =
+      /** @type {{protocol?: string} | undefined} */ ((await getConfig(rootFolder)).server)
+        ?.protocol || 'h1';
 
-  let serverUrl = options.optionFlags['--server-url'].replace(/\/+$/, '');
+  let serverUrl = /** @type {string} */ (options.optionFlags['--server-url']).replace(/\/+$/, '');
   if (protocol === 'h2') serverUrl = serverUrl.replace(/^http:/i, 'https:');
   // an explicit https: --server-url means TLS regardless of --h2
   const secure = /^https:/i.test(serverUrl);
@@ -223,13 +226,13 @@ const main = async () => {
 
   // --browsers (fan-out) overrides --browser; the singular value is the
   // one-element fallback, so a single validation covers both paths
-  let browsers = (options.optionFlags['--browsers'] || '')
+  let browsers = /** @type {string} */ (options.optionFlags['--browsers'] || '')
     .split(',')
     .map(name => name.trim())
     .filter(Boolean);
   if (browsers.includes('all')) browsers = [...supportedBrowsers];
   browsers = [...new Set(browsers)];
-  if (!browsers.length) browsers = [options.flags.browser];
+  if (!browsers.length) browsers = [/** @type {string} */ (options.flags.browser)];
 
   const badBrowser = browsers.find(name => !supportedBrowsers.includes(name));
   if (badBrowser !== undefined) {

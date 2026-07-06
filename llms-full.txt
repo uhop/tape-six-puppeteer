@@ -191,7 +191,7 @@ The `importmap` section is served by `tape6-server` at `/--importmap` and inject
 3. Initializes the reporter via `initReporter()` from `tape-six`.
 4. Ensures `tape6-server` is reachable (auto-starts if `--start-server`, passing `--h2` for an `https:` URL; under Bun/Deno the h2 server child runs on `node`). Probes have a per-request deadline; a TLS-vs-plaintext mismatch is reported explicitly, and self-launch waits briefly for the port to free after one (chained h1 → h2 runs).
 5. Fetches test files from server via `GET /--patterns?q=...` (if patterns given) or `GET /--tests`.
-6. Fetches importmap from `GET /--importmap`. All control requests go through `src/controlFetch.js`, which tolerates the server's self-signed certificate on `https:` with request-scoped trust.
+6. Fetches importmap from `GET /--importmap`. All control requests go through tape-six's `utils/controlFetch.js`, which tolerates the server's self-signed certificate on `https:` with request-scoped trust.
 7. For each selected engine (one by default; several with `--browsers`), creates a `TestWorker` instance and executes all test files — a fresh reporter per engine so counts and summaries are per-engine.
 8. Reports final results (plus a per-engine `Browsers: ... PASS|FAIL` line when fanning out) and exits with code 0 (success) or 1 (any failure on any engine).
 9. Kills auto-started server on exit.

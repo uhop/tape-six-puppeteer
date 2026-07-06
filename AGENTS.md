@@ -40,8 +40,7 @@ tape-six-puppeteer/
 │   └── tape6-puppeteer-node.js # Main CLI: config, reporter, server, test execution
 ├── src/
 │   ├── TestWorker.js     # TestWorker class: launches Puppeteer, runs tests in iframes
-│   ├── TestWorker.d.ts   # Type sidecar (@ts-self-types)
-│   └── controlFetch.js   # Control-plane client: cert-tolerant https GETs for the runner's server requests
+│   └── TestWorker.d.ts   # Type sidecar (@ts-self-types)
 ├── tests/                # Test files (test-*.js, test-*.mjs, test-*.html)
 ├── wiki/                 # GitHub wiki documentation (submodule)
 ├── README.md
@@ -59,7 +58,7 @@ tape-six-puppeteer/
 ## Architecture
 
 - `bin/tape6-puppeteer.js` is the CLI entry point. Handles `--help`, `--version`, and `--self` directly. Otherwise delegates to `bin/tape6-puppeteer-node.js`.
-- `bin/tape6-puppeteer-node.js` uses `getOptions()` and `initReporter()` from `tape-six` for CLI parsing and reporter setup. Resolves the server protocol like `tape6-server` does (`--h2` > `TAPE6_PROTOCOL` > `tape6.server.protocol` config > `h1`; h2 upgrades the server URL to `https:`). Ensures `tape6-server` is running (with optional `--start-server`, passing `--h2` through; the h2 server mode is Node-only, so under Bun/Deno the server child runs on `node`), fetches test files from the server (via `/--patterns` or `/--tests`) and importmap, then runs tests via `TestWorker`. Control requests go through `src/controlFetch.js` — on `https:` it uses `node:https` with request-scoped trust (`TAPE6_CERT` as pinned CA, else the server's cached self-signed cert, else relaxed verification; never process-wide). Every control request has a hard 3s deadline; the readiness probe reports a TLS-vs-plaintext mismatch (h1 server on an `https:` URL) explicitly and waits briefly for port release before self-launching.
+- `bin/tape6-puppeteer-node.js` uses `getOptions()` and `initReporter()` from `tape-six` for CLI parsing and reporter setup. Resolves the server protocol like `tape6-server` does (`--h2` > `TAPE6_PROTOCOL` > `tape6.server.protocol` config > `h1`; h2 upgrades the server URL to `https:`). Ensures `tape6-server` is running (with optional `--start-server`, passing `--h2` through; the h2 server mode is Node-only, so under Bun/Deno the server child runs on `node`), fetches test files from the server (via `/--patterns` or `/--tests`) and importmap, then runs tests via `TestWorker`. Control requests go through tape-six's `utils/controlFetch.js` — on `https:` it uses `node:https` with request-scoped trust (`TAPE6_CERT` as pinned CA, else the server's cached self-signed cert, else relaxed verification; never process-wide). Every control request has a hard 3s deadline; the readiness probe reports a TLS-vs-plaintext mismatch (h1 server on an `https:` URL) explicitly and waits briefly for port release before self-launching.
 - `TestWorker` (in `src/TestWorker.js`) extends `EventServer` from `tape-six`. It launches one headless browser of the selected engine via Puppeteer; each test file runs in its own `BrowserContext` → `Page` (full origin/storage isolation), with `__tape6_reporter` and `__tape6_error` exposed as page functions and the test itself in an iframe inside that page.
 - **Browser selection:** `--browser <chromium|firefox>` / `-b` (env `TAPE6_BROWSER`, default `chromium`; precedence CLI > env > default) picks the engine. `TestWorker.#init()` dynamic-picks it via `puppeteer.launch({browser})`, mapping the user-facing `chromium` to Puppeteer's launch product `chrome` (Chrome for Testing); Firefox is driven over WebDriver BiDi. `--no-sandbox` is applied to Chromium only (Firefox launches without it). `supportedBrowsers` (exported from `src/TestWorker.js`) is the single source of truth the CLI validates against. Only Chrome is fetched by `postinstall`; a missing engine fails the run with an `npx puppeteer browsers install <product>` hint (a launch failure reports a failure, so the run exits non-zero rather than a false pass). Puppeteer drives only Chromium and Firefox — for WebKit use the sibling runner [tape-six-playwright](https://github.com/uhop/tape-six-playwright).
 - **Multi-engine fan-out:** `--browsers <list|all>` (env `TAPE6_BROWSERS`; overrides `--browser`; duplicates deduped) runs the suite once per engine sequentially — one `TestWorker` and a fresh reporter per engine (`setReporter(null)` + `initReporter()` between runs, so counts and summaries are per-engine) — then prints `Browsers: <name> PASS|FAIL, ...` and exits non-zero if any engine failed. A failed-to-launch engine records FAIL; remaining engines still run.
@@ -73,7 +72,7 @@ tape-six-puppeteer/
 
 ## Dependencies
 
-- **`tape-six`** — the core test library. Imports: `State.js`, `utils/EventServer.js`, `utils/config.js` (`getOptions`, `getConfig`, `initReporter`, `showInfo`, `printFlagOptions`, `runtime`), `test.js`, `utils/timer.js`.
+- **`tape-six`** — the core test library. Imports: `State.js`, `utils/EventServer.js`, `utils/config.js` (`getOptions`, `getConfig`, `initReporter`, `showInfo`, `printFlagOptions`, `runtime`), `test.js`, `utils/timer.js`, `utils/controlFetch.js` (`createControlFetch`, `isProtocolMismatch`).
 - **`puppeteer`** — headless browser automation (Chromium and Firefox). Bundled Chromium is installed via `postinstall`; Firefox is fetched on demand (`npm run browser:all`).
 
 ## Server
