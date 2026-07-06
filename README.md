@@ -188,7 +188,7 @@ LLM-friendly documentation is available:
 
 The most recent releases:
 
-- 1.2.1 _Fixed server readiness probing: chained h1/h2 runs no longer hang; a TLS-vs-plaintext mismatch is reported clearly. Updated dependencies._
+- 1.2.1 _Fixed server readiness probing. Updated dependencies._
 - 1.2.0 _Added HTTP/2 mode and multi-engine fan-out._
 - 1.1.0 _Added browser-engine selection (`--browser chromium|firefox`). Wired the worker control channel: cooperative `terminate` drain with a Node-side force-kill backstop. Updated dependencies._
 - 1.0.4 _Replaced `process.exit()` with `process.exitCode` for graceful shutdown. Updated dependencies._
