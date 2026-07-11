@@ -135,7 +135,7 @@ TAPE6_FLAGS=FO tape6-puppeteer --start-server
 - Server URL: `TAPE6_SERVER_URL` env var, or `HOST`/`PORT`, or default `http://localhost:3000`.
 - Server endpoints used: `GET /--tests` (test file list), `GET /--patterns?q=...` (filtered file list), `GET /--importmap` (import map).
 - HTTP/2 (tape-six 1.12+): enable with `--h2`, `TAPE6_PROTOCOL=h2`, or `tape6.server.protocol` in config — the runner resolves flag > env > config exactly like the server, upgrades the server URL to `https:`, and passes `--h2` to a self-launched server. The h2 server mode is Node-only; under Bun/Deno the server child is spawned with `node` from `PATH`. HTTP/1.1 stays the default (self-signed TLS blocks service-worker registration; h2 exists for h2-only features such as Chromium's `fetch()` request-body streaming).
-- Certificates in h2 mode: the browser launches with `acceptInsecureCerts: true` (covers Chromium over CDP and Firefox over WebDriver BiDi); the runner's own control requests (`src/controlFetch.js`) go through `node:https` with trust scoped to those requests — `TAPE6_CERT` pinned as CA when set, else the server's cached auto-generated certificate (`node_modules/.cache/tape6/cert.pem`), else relaxed verification. Never process-wide (`NODE_TLS_REJECT_UNAUTHORIZED` is not touched).
+- Certificates in h2 mode: the browser launches with `acceptInsecureCerts: true` (covers Chromium over CDP and Firefox over WebDriver BiDi); the runner's own control requests (tape-six's `utils/controlFetch.js`) go through `node:https` with trust scoped to those requests — `TAPE6_CERT` pinned as CA when set, else the server's cached auto-generated certificate (`node_modules/.cache/tape6/cert.pem`), else relaxed verification. Never process-wide (`NODE_TLS_REJECT_UNAUTHORIZED` is not touched).
 
 ## Configuration
 
@@ -173,7 +173,7 @@ The `importmap` section is served by `tape6-server` at `/--importmap` and inject
 - `HOST` — server hostname (default: `localhost`).
 - `PORT` — server port (default: `3000`).
 - `TAPE6_GRACE_TIMEOUT` — control channel: ms a worker gets to drain (run cleanup hooks) after a terminate, before its browser context is force-closed (default: `5000`).
-- `TAPE6_WORKER_TIMEOUT` — control channel: per-worker wall-clock deadline in ms; on expiry the worker is drained then force-killed (default: `0`, disabled). Both are honored by tape-six's hub control plane (provided by the `^1.10` dependency).
+- `TAPE6_WORKER_TIMEOUT` — control channel: per-worker wall-clock deadline in ms; on expiry the worker is drained then force-killed (default: `0`, disabled). Both are honored by a `tape-six` that ships the hub control plane.
 
 ## Architecture
 
@@ -181,14 +181,18 @@ The `importmap` section is served by `tape6-server` at `/--importmap` and inject
 
 `bin/tape6-puppeteer.js` is the CLI entry point:
 
+- With `--help`/`-h`: prints usage and all options, then exits.
+- With `--version`/`-v`: prints version, then exits.
 - With `--self`: prints its own absolute path and exits.
 - Otherwise: delegates to `bin/tape6-puppeteer-node.js`.
 
 ### Main CLI (`bin/tape6-puppeteer-node.js`)
 
-1. Parses CLI arguments via `getOptions()` from `tape-six` (`--flags`, `--par`, `--browser`, `--browsers`, `--start-server`, `--h2`, `--server-url`, `--info`, positional test patterns) and validates the engine names against the supported engines.
+A single `runDriverCli({packageUrl, commandName, description, supportedBrowsers, TestWorker})` call into `tape-six/driver/cli.js` (the browser-driver kit, tape-six 1.15.0+). The kit owns the whole driver-bin flow:
+
+1. Parses CLI arguments (`--flags`, `--par`, `--browser`, `--browsers`, `--start-server`, `--h2`, `--server-url`, `--info`, positional test patterns) and validates the engine selection against `supportedBrowsers`.
 2. Resolves the protocol the way the server does (`--h2` > `TAPE6_PROTOCOL` > `tape6.server.protocol` config > `h1`); in h2 mode upgrades the server URL scheme to `https:`.
-3. Initializes the reporter via `initReporter()` from `tape-six`.
+3. Initializes the reporter.
 4. Ensures `tape6-server` is reachable (auto-starts if `--start-server`, passing `--h2` for an `https:` URL; under Bun/Deno the h2 server child runs on `node`). Probes have a per-request deadline; a TLS-vs-plaintext mismatch is reported explicitly, and self-launch waits briefly for the port to free after one (chained h1 → h2 runs).
 5. Fetches test files from server via `GET /--patterns?q=...` (if patterns given) or `GET /--tests`.
 6. Fetches importmap from `GET /--importmap`. All control requests go through tape-six's `utils/controlFetch.js`, which tolerates the server's self-signed certificate on `https:` with request-scoped trust.
@@ -198,20 +202,18 @@ The `importmap` section is served by `tape6-server` at `/--importmap` and inject
 
 ### TestWorker (`src/TestWorker.js`)
 
-Extends `EventServer` from `tape-six`. Manages the Puppeteer browser and per-task contexts:
+The Puppeteer adapter for the kit base in `tape-six/driver/TestWorker.js`. The base owns the task lifecycle — per-task `BrowserContext` → `Page` (full origin/storage isolation) with completion driven by the page `close` event, the `__tape6_reporter` / `__tape6_error` page functions, iframe injection via `tape-six/driver/bootstrap.js`, cooperative drain + `graceTimeout` force-kill, launch-failure reporting (a missing engine fails the run rather than reporting a false pass), and cleanup. The adapter supplies the driver-specific members:
 
-- **`constructor(reporter, numberOfTasks, options)`** — launches one headless browser of the selected engine (`options.browser`, default `chromium`) via `puppeteer.launch({browser})`; the user-facing `chromium` maps to Puppeteer's `chrome` product, Firefox runs over WebDriver BiDi, and `--no-sandbox` is applied to Chromium only. With an `https:` server URL the launch adds `acceptInsecureCerts: true` (the h2 self-signed certificate; covers both engines).
-- **`makeTask(fileName)`** — creates a fresh `BrowserContext` → `Page` for the test (full origin/storage isolation), exposes `__tape6_reporter` and `__tape6_error` on that page, navigates it to the server origin, and runs the test file in an iframe inside it. Returns a task ID. If the browser failed to launch (e.g. the engine isn't installed), it reports a failure so the run exits non-zero rather than reporting a false pass.
-- **`destroyTask(id, reason)`** — the control plane. `done` closes the task's context; an abort reason (`failOnce` / `timeout`) drains the running test (posts `tape6-terminate` into the iframe), then force-kills it by closing the context after `graceTimeout`.
-- **`cleanup()`** — closes the browser.
+- **`supportedBrowsers`** — `['chromium', 'firefox']`; also exported and passed to `runDriverCli` as the single source of truth for CLI validation.
+- **`pageErrorEvent`** — `'error'` (Puppeteer's page-level error event).
+- **`launchBrowser(name, {insecure})`** — `puppeteer.launch({browser})`, headless, mapping the user-facing `chromium` to Puppeteer's `chrome` product (Chrome for Testing; Firefox runs over WebDriver BiDi), `--no-sandbox` on Chromium only; `insecure` adds `acceptInsecureCerts: true` at launch (the h2 self-signed certificate; the launch-level option covers both engines). Wraps a launch failure with an `npx puppeteer browsers install <product>` hint.
+- **`newContext(browser)`** — an isolated context per task via `createBrowserContext()`; isolation only, since the cert flag is taken at launch.
 
-Task completion is driven by each page's `close` event, not by a reported event, so a force-killed page (which emits nothing) still completes `close(id)` exactly once.
-
-Types ship as a hand-written sidecar (`src/TestWorker.d.ts`, advertised via `// @ts-self-types` in `TestWorker.js`): `TestWorker`, `TestWorkerOptions`, and `supportedBrowsers`, built on tape-six's shipped `EventServer` types.
+Types ship as a hand-written sidecar (`src/TestWorker.d.ts`, advertised via `// @ts-self-types` in `TestWorker.js`), built on tape-six's shipped driver-kit types: it narrows the kit base's deliberately-`any` driver handles to Puppeteer's `Browser` / `BrowserContext`. The pre-kit `TestWorkerOptions` interface and constructor union are gone — tape-six ≥ 1.14.1 typings made both unnecessary.
 
 ### Browser engines
 
-The engine is chosen with `--browser <chromium|firefox>` / `-b`, or `TAPE6_BROWSER` (precedence: CLI > env > default `chromium`). The CLI validates the value against `supportedBrowsers` (exported from `src/TestWorker.js` — the single source of truth) and exits with an error on an unknown engine. `TestWorker.#init()` then launches it via `puppeteer.launch({browser})`, mapping the user-facing `chromium` to Puppeteer's launch product `chrome` (a Chromium build, Chrome for Testing) and driving Firefox over WebDriver BiDi. `--no-sandbox` is applied to Chromium only (Firefox launches without it). The per-context model, iframe injection, data plane, and control channel are identical across both engines — only the launched browser differs.
+The engine is chosen with `--browser <chromium|firefox>` / `-b`, or `TAPE6_BROWSER` (precedence: CLI > env > default `chromium`). The CLI validates the value against `supportedBrowsers` (exported from `src/TestWorker.js` — the single source of truth) and exits with an error on an unknown engine. The kit base then resolves it and calls the adapter's `launchBrowser(name, {insecure})` — `puppeteer.launch({browser})`, mapping the user-facing `chromium` to Puppeteer's launch product `chrome` (a Chromium build, Chrome for Testing) and driving Firefox over WebDriver BiDi. `--no-sandbox` is applied to Chromium only (Firefox launches without it). The per-context model, iframe injection, data plane, and control channel are identical across both engines — only the launched browser differs.
 
 `postinstall` fetches only Chrome; Firefox is installed on demand (`npm run browser:all`, or `npx puppeteer browsers install firefox`). Requesting an engine that isn't installed surfaces a clear `npx puppeteer browsers install <product>` hint and fails the run (a launch failure reports a failure, so the run exits non-zero rather than a false pass).
 
@@ -244,16 +246,16 @@ iframe tape-six → ProxyReporter → window.parent.__tape6_reporter(id, event)
 
 ### Worker control channel
 
-`TestWorker` implements the provider side of tape-six's worker control channel (full spec in the tape-six repo's `dev-docs/worker-control-channel.md`). The runner stops a worker through `destroyTask(id, reason)`:
+`TestWorker` implements the provider side of tape-six's worker control channel (full spec in the tape-six repo's `dev-docs/worker-control-channel.md`) — the implementation lives in the kit base and is inherited by the adapter. The runner stops a worker through `destroyTask(id, reason)`:
 
 - `done` — the test finished; close its context now.
 - `failOnce` / `timeout` (abort) — drain cooperatively first: post `{type: 'tape6-terminate'}` into the test's iframe so `tape-six` arms `stopTest` and fires the abort signal, unwinding the test at its next assertion and running its cleanup hooks. If the test doesn't exit within `graceTimeout` (`TAPE6_GRACE_TIMEOUT`), force-kill it by closing the `BrowserContext` — the real kill an in-page iframe can't perform on itself.
 
-This is the driver-backed browser's answer to "no in-page force-kill": a hung, non-cooperative test that ignores the drain is still stopped, because the Node-side driver closes its context. The cooperative drain relies on the in-iframe `tape6-terminate` listener in tape-six's hub control plane, provided by the `^1.10` dependency floor; the force-kill backstop works with any version.
+This is the driver-backed browser's answer to "no in-page force-kill": a hung, non-cooperative test that ignores the drain is still stopped, because the Node-side driver closes its context.
 
 ## Dependencies
 
-- **`tape-six`** — the core test library. Imports: `State.js`, `utils/EventServer.js`, `utils/config.js` (`getOptions`, `getConfig`, `initReporter`, `showInfo`, `runtime`), `test.js`, `utils/timer.js`.
+- **`tape-six`** (^1.15.0 — the driver-kit floor) — the core test library. Imports: `driver/TestWorker.js` (the kit base class), `driver/cli.js` (`runDriverCli`), plus `utils/config.js` (`printFlagOptions`) in the wrapper bin.
 - **`puppeteer`** — headless browser automation (Chromium and Firefox). Bundled Chromium installed via `postinstall`; Firefox fetched on demand (`npm run browser:all`).
 
 ## Writing tests

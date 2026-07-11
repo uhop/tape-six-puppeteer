@@ -65,7 +65,7 @@
   ],
   "dependencies": {
     "puppeteer": "^25.3.0",
-    "tape-six": "^1.14.0"
+    "tape-six": "^1.15.0"
   },
   "tape6": {
     "browser": [
@@ -82,9 +82,9 @@
     }
   },
   "devDependencies": {
-    "@types/node": "^26.1.0",
-    "prettier": "^3.9.4",
-    "typescript": "^6.0.3"
+    "@types/node": "^26.1.1",
+    "prettier": "^3.9.5",
+    "typescript": "^7.0.2"
   },
   "allowScripts": {
     "puppeteer@25.3.0": true

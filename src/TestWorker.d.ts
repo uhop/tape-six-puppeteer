@@ -1,21 +1,5 @@
-import {EventServer, EventServerOptions, EventServerReporter} from 'tape-six/utils/EventServer.js';
-import type {OutputReporter} from 'tape-six/test.js';
-import type {Browser, BrowserContext, Page} from 'puppeteer';
-
-/**
- * Options consumed by the Puppeteer worker on top of the base class:
- * runner wiring (`serverUrl`, `importmap`, `flags`) and the engine choice.
- */
-export interface TestWorkerOptions extends EventServerOptions {
-  /** Engine to launch — one of `supportedBrowsers` (default: `'chromium'`). */
-  browser?: string;
-  /** Base URL of the tape6 server the tests are loaded from. */
-  serverUrl?: string;
-  /** Import map injected into generated test pages. */
-  importmap?: object | null;
-  /** Reporter flags forwarded to the in-page tape-six. */
-  flags?: string;
-}
+import DriverTestWorker from 'tape-six/driver/TestWorker.js';
+import type {Browser, BrowserContext} from 'puppeteer';
 
 /**
  * Engines this provider can drive: the Chromium family and Firefox
@@ -24,30 +8,26 @@ export interface TestWorkerOptions extends EventServerOptions {
 export const supportedBrowsers: string[];
 
 /**
- * Puppeteer-backed test worker: each task runs in its own BrowserContext +
- * Page (the test itself in an iframe inside that page); completion is driven
- * by the page `close` event. See ARCHITECTURE.md.
+ * Puppeteer adapter for tape-six's browser-driver kit: the shared task
+ * lifecycle (per-task BrowserContext + Page, completion driven by the page
+ * `close` event, cooperative drain / force-kill) lives in the base class;
+ * this subclass supplies the driver-specific members. See ARCHITECTURE.md.
  */
-export class TestWorker extends EventServer {
-  // OutputReporter in the union: State lacks EventServerReporter.state's index signature (upstream gap)
-  constructor(
-    reporter: EventServerReporter | OutputReporter,
-    numberOfTasks?: number,
-    options?: TestWorkerOptions
-  );
+export class TestWorker extends DriverTestWorker {
+  /**
+   * Launch the named engine headless (`--no-sandbox` on Chromium; `chromium`
+   * maps to Puppeteer's `chrome` product). `insecure` sets
+   * `acceptInsecureCerts` at launch — Puppeteer's h2 self-signed-cert flag
+   * lives here, not on the context. Wraps a launch failure with an
+   * `npx puppeteer browsers install` remediation hint.
+   */
+  launchBrowser(name: string, options: {insecure: boolean}): Promise<Browser>;
 
-  options: TestWorkerOptions;
+  /** Isolated context per task via `createBrowserContext()`; the h2 cert flag lives at launch. */
+  newContext(browser: Browser, options: {insecure: boolean}): Promise<BrowserContext>;
 
   /** The launched browser; `null` until the first task and after `cleanup()`. */
   browser: Browser | null;
-
-  // Per-task bookkeeping — not a consumer surface.
-  counter: number;
-  tasks: Record<string, {context: BrowserContext; page: Page}>;
-  graceTimers: Record<string, ReturnType<typeof setTimeout>>;
-
-  /** Close the launched browser and drop all task tracking. */
-  cleanup(): Promise<void>;
 }
 
 export default TestWorker;
