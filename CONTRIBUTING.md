@@ -7,7 +7,7 @@ Thank you for your interest in contributing!
 This project uses a git submodule for the wiki. Clone and install:
 
 ```bash
-git clone --recursive git@github.com:uhop/tape-six-puppeteer.git
+git clone --recursive https://github.com/uhop/tape-six-puppeteer.git
 cd tape-six-puppeteer
 npm install
 ```
@@ -23,6 +23,13 @@ npm install
 - ES modules (`import`/`export`), no CommonJS in source.
 - Formatted with Prettier — run `npm run lint:fix` before committing.
 - No unnecessary dependencies.
+
+## License
+
+This project is distributed under the [BSD-3-Clause license](./LICENSE).
+External contributions are accepted only under licenses compatible with
+BSD-3-Clause; submissions under fundamentally incompatible licenses cannot
+be merged.
 
 ## AI agents
 

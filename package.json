@@ -64,8 +64,8 @@
     "llms-full.txt"
   ],
   "dependencies": {
-    "puppeteer": "^25.3.0",
-    "tape-six": "^1.15.0"
+    "puppeteer": "^25.4.0",
+    "tape-six": "^1.16.2"
   },
   "tape6": {
     "browser": [
@@ -82,11 +82,11 @@
     }
   },
   "devDependencies": {
-    "@types/node": "^26.1.1",
-    "prettier": "^3.9.5",
+    "@types/node": "^26.1.2",
+    "prettier": "^3.9.6",
     "typescript": "^7.0.2"
   },
   "allowScripts": {
-    "puppeteer@25.3.0": true
+    "puppeteer@25.4.0": true
   }
 }
